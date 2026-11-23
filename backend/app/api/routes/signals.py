@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Request, status
 from sqlalchemy import select
 
 from app.api.deps import DbSession, HealthTeamUser, InsightUser, get_or_404
@@ -12,6 +12,7 @@ from app.schemas.surveillance import (
     SignalRead,
     SignalTransition,
 )
+from app.services import audit
 from app.services.surveillance import can_transition, detect_signals
 
 router = APIRouter(prefix="/signals", tags=["community signals"])
@@ -41,7 +42,11 @@ def get_signal(signal_id: int, db: DbSession, _: InsightUser) -> HealthSignal:
 
 @router.post("/{signal_id}/transition", response_model=SignalDetail)
 def transition_signal(
-    signal_id: int, payload: SignalTransition, user: HealthTeamUser, db: DbSession
+    signal_id: int,
+    payload: SignalTransition,
+    user: HealthTeamUser,
+    db: DbSession,
+    request: Request,
 ) -> HealthSignal:
     """Move a signal through review. Every change requires a note (audit trail)."""
     signal = get_or_404(db, HealthSignal, signal_id)
@@ -58,6 +63,11 @@ def transition_signal(
             status_change=f"{signal.status}->{payload.status}",
         )
     )
+    audit.record(
+        db, user, "signal.transition", "signal", signal.id,
+        f"Signal #{signal.id}: {signal.status} -> {payload.status}",
+        {"from": signal.status, "to": payload.status}, request,
+    )  # fmt: skip
     signal.status = payload.status
     if payload.status == SignalStatus.UNDER_REVIEW and signal.assigned_to_id is None:
         signal.assigned_to_id = user.id

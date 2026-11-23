@@ -1,9 +1,16 @@
-import { Navigate, Route, Routes } from "react-router-dom";
 import type { ReactNode } from "react";
+import { Navigate, Route, Routes } from "react-router-dom";
+import type { UserRole } from "./api/types";
 import { useAuth } from "./auth/AuthContext";
 import { homeFor } from "./auth/home";
 import { Layout } from "./components/Layout";
 import { Loading } from "./components/ui";
+import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
+import AuditLogPage from "./pages/admin/AuditLogPage";
+import ContentPage from "./pages/admin/ContentPage";
+import PlacesPage from "./pages/admin/PlacesPage";
+import SettingsPage from "./pages/admin/SettingsPage";
+import UsersPage from "./pages/admin/UsersPage";
 import AlertsPage from "./pages/AlertsPage";
 import FamilyPage from "./pages/FamilyPage";
 import InsightsPage from "./pages/InsightsPage";
@@ -15,10 +22,20 @@ import ReportSymptomsPage from "./pages/ReportSymptomsPage";
 import SignalDetailPage from "./pages/SignalDetailPage";
 import SignalsPage from "./pages/SignalsPage";
 
+const STAFF: UserRole[] = ["health_reviewer", "analyst", "institution", "admin"];
+const HEALTH_TEAM: UserRole[] = ["health_reviewer", "analyst", "admin"];
+
 function RequireAuth({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
-  if (loading) return <Loading />;
+  if (loading) return <div style={{ padding: 40 }}><Loading rows={4} /></div>;
   if (!user) return <Navigate to="/login" replace />;
+  return <>{children}</>;
+}
+
+/** UI-level guard. The API enforces the same rules; this just avoids dead-end pages. */
+function RequireRole({ roles, children }: { roles: UserRole[]; children: ReactNode }) {
+  const { user } = useAuth();
+  if (!user || !roles.includes(user.role)) return <Navigate to={user ? homeFor(user.role) : "/login"} replace />;
   return <>{children}</>;
 }
 
@@ -27,27 +44,31 @@ function Home() {
   return <Navigate to={user ? homeFor(user.role) : "/login"} replace />;
 }
 
+const only = (roles: UserRole[], el: ReactNode) => <RequireRole roles={roles}>{el}</RequireRole>;
+
 export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
-      <Route
-        element={
-          <RequireAuth>
-            <Layout />
-          </RequireAuth>
-        }
-      >
+      <Route element={<RequireAuth><Layout /></RequireAuth>}>
         <Route index element={<Home />} />
-        <Route path="family" element={<FamilyPage />} />
-        <Route path="report" element={<ReportSymptomsPage />} />
+        <Route path="family" element={only(["parent"], <FamilyPage />)} />
+        <Route path="report" element={only(["parent"], <ReportSymptomsPage />)} />
         <Route path="learn" element={<LearnPage />} />
-        <Route path="insights" element={<InsightsPage />} />
-        <Route path="map" element={<MapPage />} />
-        <Route path="signals" element={<SignalsPage />} />
-        <Route path="signals/:id" element={<SignalDetailPage />} />
-        <Route path="alerts" element={<AlertsPage />} />
         <Route path="notifications" element={<NotificationsPage />} />
+
+        <Route path="insights" element={only(STAFF, <InsightsPage />)} />
+        <Route path="map" element={only(STAFF, <MapPage />)} />
+        <Route path="signals" element={only(STAFF, <SignalsPage />)} />
+        <Route path="signals/:id" element={only(STAFF, <SignalDetailPage />)} />
+        <Route path="alerts" element={only(HEALTH_TEAM, <AlertsPage />)} />
+
+        <Route path="admin" element={only(["admin"], <AdminDashboardPage />)} />
+        <Route path="admin/users" element={only(["admin"], <UsersPage />)} />
+        <Route path="admin/places" element={only(["admin"], <PlacesPage />)} />
+        <Route path="admin/content" element={only(["admin"], <ContentPage />)} />
+        <Route path="admin/audit" element={only(["admin"], <AuditLogPage />)} />
+        <Route path="admin/settings" element={only(["admin"], <SettingsPage />)} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

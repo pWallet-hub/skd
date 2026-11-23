@@ -1,13 +1,14 @@
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, HTTPException, UploadFile, status
+from fastapi import APIRouter, HTTPException, Request, UploadFile, status
 from sqlalchemy import or_, select
 
-from app.api.deps import CurrentUser, DbSession, HealthTeamUser, get_or_404
-from app.core.storage import ALLOWED_IMAGE_TYPES, file_url, upload_file
+from app.api.deps import AdminUser, CurrentUser, DbSession, HealthTeamUser, get_or_404
+from app.core.storage import ALLOWED_IMAGE_TYPES, delete_file, file_url, upload_file
 from app.models import Article
 from app.models.enums import ContentAudience, ContentCategory, ContentStatus, UserRole
 from app.schemas.content import ArticleCreate, ArticleRead, ArticleUpdate
+from app.services import audit
 
 router = APIRouter(prefix="/content/articles", tags=["content"])
 
@@ -69,7 +70,7 @@ def create_article(payload: ArticleCreate, user: HealthTeamUser, db: DbSession) 
 
 @router.patch("/{article_id}", response_model=ArticleRead)
 def update_article(
-    article_id: int, payload: ArticleUpdate, user: HealthTeamUser, db: DbSession
+    article_id: int, payload: ArticleUpdate, user: HealthTeamUser, db: DbSession, request: Request
 ) -> ArticleRead:
     article = get_or_404(db, Article, article_id)
     data = payload.model_dump(exclude_unset=True)
@@ -85,6 +86,11 @@ def update_article(
             )
         article.reviewed_by_id = user.id
         article.published_at = datetime.now(UTC)
+    if new_status and new_status != article.status:
+        audit.record(
+            db, user, f"article.{new_status}", "article", article.id,
+            f"Article '{article.title}' set to {new_status}", request=request,
+        )  # fmt: skip
     for field, value in data.items():
         setattr(article, field, value)
     db.commit()
@@ -109,3 +115,16 @@ def upload_cover(
     )
     db.commit()
     return to_read(article)
+
+
+@router.delete("/{article_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_article(article_id: int, admin: AdminUser, db: DbSession, request: Request) -> None:
+    article = get_or_404(db, Article, article_id)
+    if article.cover_image_key:
+        delete_file(article.cover_image_key, "public")
+    audit.record(
+        db, admin, "article.delete", "article", article.id,
+        f"Deleted article '{article.title}'", request=request,
+    )  # fmt: skip
+    db.delete(article)
+    db.commit()

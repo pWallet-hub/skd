@@ -1,6 +1,7 @@
 """Community health signal detection.
 
-Method (deliberately simple and explainable for the prototype):
+Method (deliberately simple and explainable for the prototype). Thresholds come from
+environment defaults, overridable by admins (see services/system_settings.py):
 
 For every (school, symptom category) and (area, symptom category) pair we compare
   * the number of reports in the last SIGNAL_WINDOW_DAYS ("window"), with
@@ -19,9 +20,9 @@ from datetime import date, timedelta
 from sqlalchemy import and_, case, func, select
 from sqlalchemy.orm import Session
 
-from app.core.config import settings
 from app.models import HealthSignal, Symptom, SymptomReport, report_symptoms
 from app.models.enums import SignalStatus, SymptomCategory
+from app.services.system_settings import get_detection_settings
 
 OPEN_STATUSES = (SignalStatus.DETECTED, SignalStatus.UNDER_REVIEW, SignalStatus.CONFIRMED)
 
@@ -47,10 +48,11 @@ class Candidate:
 
 
 def find_candidates(db: Session, today: date | None = None) -> tuple[date, date, list[Candidate]]:
+    cfg = get_detection_settings(db)
     today = today or date.today()
-    window_start = today - timedelta(days=settings.signal_window_days - 1)
-    baseline_start = window_start - timedelta(days=settings.signal_baseline_days)
-    scale = settings.signal_window_days / settings.signal_baseline_days
+    window_start = today - timedelta(days=cfg.signal_window_days - 1)
+    baseline_start = window_start - timedelta(days=cfg.signal_baseline_days)
+    scale = cfg.signal_window_days / cfg.signal_baseline_days
 
     in_window = SymptomReport.onset_date >= window_start
     in_baseline = and_(
@@ -79,10 +81,7 @@ def find_candidates(db: Session, today: date | None = None) -> tuple[date, date,
         for group_id, category, window_count, baseline_count in db.execute(stmt):
             expected = baseline_count * scale
             score = window_count / max(expected, 1.0)
-            if (
-                window_count >= settings.signal_min_reports
-                and score >= settings.signal_ratio_threshold
-            ):
+            if window_count >= cfg.signal_min_reports and score >= cfg.signal_ratio_threshold:
                 candidates.append(
                     Candidate(
                         category=SymptomCategory(category),

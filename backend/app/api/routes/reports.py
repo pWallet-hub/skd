@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, HTTPException, Query, Request, status
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
@@ -7,6 +7,7 @@ from app.api.routes.children import get_owned_child
 from app.models import Symptom, SymptomReport
 from app.models.enums import UserRole
 from app.schemas.health import ReportCreate, ReportRead, ReportUpdate, ReportVerify, SymptomRead
+from app.services import audit
 
 router = APIRouter(tags=["health reports"])
 
@@ -83,11 +84,15 @@ def update_report(
 
 @router.post("/reports/{report_id}/verification", response_model=ReportRead)
 def verify_report(
-    report_id: int, payload: ReportVerify, _: ReviewerUser, db: DbSession
+    report_id: int, payload: ReportVerify, user: ReviewerUser, db: DbSession, request: Request
 ) -> SymptomReport:
     """Health reviewers mark a report as clinically confirmed (or back to observation)."""
     report = get_or_404(db, SymptomReport, report_id)
     report.verification = payload.verification
+    audit.record(
+        db, user, "report.verification", "report", report.id,
+        f"Report #{report.id} marked {payload.verification}", request=request,
+    )  # fmt: skip
     db.commit()
     db.refresh(report)
     return report

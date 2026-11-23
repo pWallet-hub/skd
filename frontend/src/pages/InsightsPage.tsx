@@ -1,68 +1,106 @@
 import { useQuery } from "@tanstack/react-query";
-import { get } from "../api/client";
-import type { AreaAggregate, CategoryCount, Overview } from "../api/types";
-import { Card, Loading, Stat } from "../components/ui";
+import { useState } from "react";
+import { Link } from "react-router-dom";
+import { download, get } from "../api/client";
+import type { AreaAggregate, CategoryCount, Overview, Signal, TrendPoint } from "../api/types";
+import { DailyBars, HBarList } from "../components/charts";
+import { fillDays } from "../utils/chart";
+import { humanize } from "../utils/format";
+import { Activity, ArrowRight, Baby, Download, Megaphone, Radar, Users } from "../components/icons";
+import { useToast } from "../components/Toast";
+import { Badge, Button, Card, EmptyState, Loading, PageHeader, StatCard } from "../components/ui";
+
+const RANGES = [7, 14, 30, 90];
 
 export default function InsightsPage() {
+  const toast = useToast();
+  const [days, setDays] = useState(30);
   const overview = useQuery({ queryKey: ["overview"], queryFn: () => get<Overview>("/analytics/overview") });
-  const categories = useQuery({
-    queryKey: ["categories"],
-    queryFn: () => get<CategoryCount[]>("/analytics/categories?days=30"),
-  });
-  const areas = useQuery({
-    queryKey: ["areas-agg", 30],
-    queryFn: () => get<AreaAggregate[]>("/analytics/areas?days=30"),
-  });
-  const max = Math.max(1, ...(categories.data?.map((c) => c.count) ?? [1]));
+  const trends = useQuery({ queryKey: ["trends", days], queryFn: () => get<TrendPoint[]>(`/analytics/trends?days=${days}`) });
+  const categories = useQuery({ queryKey: ["categories", days], queryFn: () => get<CategoryCount[]>(`/analytics/categories?days=${days}`) });
+  const areas = useQuery({ queryKey: ["areas-agg", days], queryFn: () => get<AreaAggregate[]>(`/analytics/areas?days=${days}`) });
+  const signals = useQuery({ queryKey: ["signals"], queryFn: () => get<Signal[]>("/signals") });
+  const open = signals.data?.filter((s) => ["detected", "under_review", "confirmed"].includes(s.status)) ?? [];
+  const o = overview.data;
+
+  async function exportCsv() {
+    try {
+      await download(`/analytics/export.csv?days=${days}`, `smartkids-aggregates-${days}d.csv`);
+    } catch {
+      toast("Export failed", "error");
+    }
+  }
 
   return (
-    <div className="grid">
-      <Card title="Overview">
-        {overview.isLoading && <Loading />}
-        {overview.data && (
-          <div className="stats">
-            <Stat label="Families" value={overview.data.families} />
-            <Stat label="Children" value={overview.data.children} />
-            <Stat label="Reports (total)" value={overview.data.reports_total} />
-            <Stat label="Reports (7 days)" value={overview.data.reports_last_7_days} />
-            <Stat label="Open signals" value={overview.data.open_signals} />
-            <Stat label="Published alerts" value={overview.data.published_alerts} />
-          </div>
-        )}
-      </Card>
+    <>
+      <PageHeader
+        title="Community health overview"
+        subtitle="Aggregated, de-identified data from voluntary parent reports."
+        actions={
+          <>
+            <select className="input" style={{ width: "auto" }} value={days} onChange={(e) => setDays(Number(e.target.value))} aria-label="Time range">
+              {RANGES.map((r) => <option key={r} value={r}>Last {r} days</option>)}
+            </select>
+            <Button variant="secondary" icon={<Download size={16} />} onClick={exportCsv}>Export CSV</Button>
+          </>
+        }
+      />
 
-      <Card title="Most reported concerns (30 days)">
-        {categories.data?.map((c) => (
-          <div key={c.category} className="bar-row">
-            <span>{c.category}</span>
-            <div className="bar">
-              <div style={{ width: `${(c.count / max) * 100}%` }} />
-            </div>
-            <strong>{c.count}</strong>
-          </div>
-        ))}
-      </Card>
+      <div className="grid grid-4" style={{ marginBottom: 18 }}>
+        <StatCard label="Registered families" value={o?.families ?? "–"} icon={<Users size={20} />} sub={`${o?.children ?? "–"} children`} />
+        <StatCard label="Reports (last 7 days)" value={o?.reports_last_7_days ?? "–"} tone="info" icon={<Activity size={20} />} sub={`${o?.reports_total ?? "–"} all time`} />
+        <StatCard label="Open signals" value={o?.open_signals ?? "–"} tone={o?.open_signals ? "danger" : "ok"} icon={<Radar size={20} />} sub="awaiting or under review" />
+        <StatCard label="Published alerts" value={o?.published_alerts ?? "–"} tone="warn" icon={<Megaphone size={20} />} />
+      </div>
 
-      <Card title="Reports by area (30 days)">
-        <table>
-          <thead>
-            <tr>
-              <th>Area</th>
-              <th>Reports</th>
-              <th>Top concern</th>
-            </tr>
-          </thead>
-          <tbody>
-            {areas.data?.map((a) => (
-              <tr key={a.area_id}>
-                <td>{a.area_name}</td>
-                <td>{a.suppressed ? <span className="muted">&lt; min. size</span> : a.report_count}</td>
-                <td>{a.top_category ?? "—"}</td>
-              </tr>
+      <div className="grid grid-main" style={{ marginBottom: 18 }}>
+        <Card title="Reports per day" subtitle={`By symptom onset, last ${days} days`}>
+          {trends.isLoading ? <Loading rows={5} /> : <DailyBars data={fillDays(trends.data ?? [], days)} />}
+        </Card>
+        <Card title="Most reported concerns" subtitle="Reports per symptom category">
+          {categories.isLoading && <Loading />}
+          {categories.data?.length === 0 && <EmptyState title="No reports in this period" />}
+          <HBarList items={(categories.data ?? []).map((c) => ({ label: c.category, value: c.count }))} />
+        </Card>
+      </div>
+
+      <div className="grid grid-main">
+        <Card title="Reports by area" subtitle="Areas below the minimum count are hidden for privacy" flush>
+          <div className="table-wrap">
+            <table className="table">
+              <thead><tr><th>Area</th><th className="num">Reports</th><th>Top concern</th></tr></thead>
+              <tbody>
+                {areas.data?.map((a) => (
+                  <tr key={a.area_id}>
+                    <td className="strong">{a.area_name}</td>
+                    <td className="num">{a.suppressed ? <span className="muted small">hidden</span> : a.report_count}</td>
+                    <td>{a.top_category ? <Badge value={a.top_category} /> : <span className="muted">—</span>}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+        <Card title="Open signals" actions={<Link to="/signals" className="small">All signals <ArrowRight size={14} style={{ verticalAlign: -2 }} /></Link>} flush>
+          {open.length === 0 && <EmptyState title="No open signals" message="Nothing unusual detected." icon={<Baby size={22} />} />}
+          <ul className="list">
+            {open.map((s) => (
+              <li key={s.id} className="list-item">
+                <div className="list-icon danger"><Radar size={18} /></div>
+                <div className="body">
+                  <Link to={`/signals/${s.id}`} className="strong" style={{ color: "var(--text)" }}>
+                    {s.school?.name ?? s.area?.name}
+                  </Link>
+                  <div className="muted small">
+                    {humanize(s.symptom_category)} · {s.report_count} reports (≈{s.baseline_count} expected)
+                  </div>
+                </div>
+                <Badge value={s.status} />
+              </li>
             ))}
-          </tbody>
-        </table>
-      </Card>
-    </div>
+          </ul>
+        </Card>
+      </div>
+    </>
   );
 }

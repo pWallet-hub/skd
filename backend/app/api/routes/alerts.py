@@ -1,12 +1,13 @@
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Request, status
 from sqlalchemy import select
 
 from app.api.deps import DbSession, HealthTeamUser, InsightUser, ReviewerUser, get_or_404
 from app.models import AdministrativeArea, CommunityAlert, School
 from app.models.enums import AlertStatus
 from app.schemas.notification import AlertCreate, AlertRead, AlertUpdate
+from app.services import audit
 from app.workers.tasks import publish_alert_task
 
 router = APIRouter(prefix="/alerts", tags=["community alerts"])
@@ -31,6 +32,18 @@ def _set_targets(db: DbSession, alert: CommunityAlert, area_ids, school_ids) -> 
         alert.target_schools = list(db.scalars(select(School).where(School.id.in_(school_ids))))
 
 
+def _audit(db, user, alert: CommunityAlert, verb: str, request: Request) -> None:
+    audit.record(
+        db,
+        user,
+        f"alert.{verb}",
+        "alert",
+        alert.id,
+        f"Alert '{alert.title}' {verb}",
+        request=request,
+    )
+
+
 def _require_status(alert: CommunityAlert, *allowed: AlertStatus) -> None:
     if alert.status not in allowed:
         raise HTTPException(
@@ -45,13 +58,17 @@ def list_alerts(db: DbSession, _: InsightUser) -> list[AlertRead]:
 
 
 @router.post("", response_model=AlertRead, status_code=status.HTTP_201_CREATED)
-def create_alert(payload: AlertCreate, user: HealthTeamUser, db: DbSession) -> AlertRead:
+def create_alert(
+    payload: AlertCreate, user: HealthTeamUser, db: DbSession, request: Request
+) -> AlertRead:
     alert = CommunityAlert(
         **payload.model_dump(exclude={"target_area_ids", "target_school_ids"}),
         created_by_id=user.id,
     )
     _set_targets(db, alert, payload.target_area_ids, payload.target_school_ids)
     db.add(alert)
+    db.flush()
+    _audit(db, user, alert, "created", request)
     db.commit()
     db.refresh(alert)
     return to_read(alert)
@@ -78,18 +95,19 @@ def update_alert(
 
 
 @router.post("/{alert_id}/submit", response_model=AlertRead)
-def submit_alert(alert_id: int, _: HealthTeamUser, db: DbSession) -> AlertRead:
+def submit_alert(alert_id: int, user: HealthTeamUser, db: DbSession, request: Request) -> AlertRead:
     alert = get_or_404(db, CommunityAlert, alert_id)
     _require_status(alert, AlertStatus.DRAFT)
     if not alert.target_areas and not alert.target_schools:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Alert has no target audience")
     alert.status = AlertStatus.PENDING_APPROVAL
+    _audit(db, user, alert, "submitted", request)
     db.commit()
     return to_read(alert)
 
 
 @router.post("/{alert_id}/approve", response_model=AlertRead)
-def approve_alert(alert_id: int, user: ReviewerUser, db: DbSession) -> AlertRead:
+def approve_alert(alert_id: int, user: ReviewerUser, db: DbSession, request: Request) -> AlertRead:
     """Four-eyes rule: the approver must be a health reviewer and not the author."""
     alert = get_or_404(db, CommunityAlert, alert_id)
     _require_status(alert, AlertStatus.PENDING_APPROVAL)
@@ -98,32 +116,39 @@ def approve_alert(alert_id: int, user: ReviewerUser, db: DbSession) -> AlertRead
     alert.status = AlertStatus.APPROVED
     alert.approved_by_id = user.id
     alert.approved_at = datetime.now(UTC)
+    _audit(db, user, alert, "approved", request)
     db.commit()
     return to_read(alert)
 
 
 @router.post("/{alert_id}/reject", response_model=AlertRead)
-def reject_alert(alert_id: int, _: ReviewerUser, db: DbSession) -> AlertRead:
+def reject_alert(alert_id: int, user: ReviewerUser, db: DbSession, request: Request) -> AlertRead:
     alert = get_or_404(db, CommunityAlert, alert_id)
     _require_status(alert, AlertStatus.PENDING_APPROVAL)
     alert.status = AlertStatus.DRAFT
+    _audit(db, user, alert, "rejected", request)
     db.commit()
     return to_read(alert)
 
 
 @router.post("/{alert_id}/publish", response_model=AlertRead, status_code=status.HTTP_202_ACCEPTED)
-def publish_alert(alert_id: int, _: HealthTeamUser, db: DbSession) -> AlertRead:
+def publish_alert(
+    alert_id: int, user: HealthTeamUser, db: DbSession, request: Request
+) -> AlertRead:
     """Queues delivery to all targeted families (Celery worker)."""
     alert = get_or_404(db, CommunityAlert, alert_id)
     _require_status(alert, AlertStatus.APPROVED)
+    _audit(db, user, alert, "published", request)
+    db.commit()
     publish_alert_task.delay(alert.id)
     return to_read(alert)
 
 
 @router.post("/{alert_id}/retract", response_model=AlertRead)
-def retract_alert(alert_id: int, _: ReviewerUser, db: DbSession) -> AlertRead:
+def retract_alert(alert_id: int, user: ReviewerUser, db: DbSession, request: Request) -> AlertRead:
     alert = get_or_404(db, CommunityAlert, alert_id)
     _require_status(alert, AlertStatus.PUBLISHED, AlertStatus.APPROVED)
     alert.status = AlertStatus.RETRACTED
+    _audit(db, user, alert, "retracted", request)
     db.commit()
     return to_read(alert)

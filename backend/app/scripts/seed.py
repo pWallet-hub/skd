@@ -9,7 +9,7 @@ school so the signal-detection workflow can be demonstrated. It is NOT a real he
 """
 
 import random
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
@@ -19,6 +19,7 @@ from app.core.security import hash_password
 from app.models import (
     AdministrativeArea,
     Article,
+    AuditLog,
     Child,
     CommunityAlert,
     GrowthMeasurement,
@@ -29,6 +30,7 @@ from app.models import (
     School,
     Symptom,
     SymptomReport,
+    SystemSetting,
     User,
 )
 from app.models.enums import (
@@ -172,6 +174,21 @@ ARTICLES = [
     ),
 ]
 
+DRAFT_ARTICLES = [
+    (
+        "safe-sleep-for-babies",
+        "Safe sleep for babies",
+        "Positions and bedding that lower the risk of sleep accidents.",
+        ContentCategory.SAFETY,
+    ),
+    (
+        "first-1000-days",
+        "The first 1,000 days",
+        "Why nutrition from pregnancy to age two shapes lifelong health.",
+        ContentCategory.NUTRITION,
+    ),
+]
+
 PARENT_NAMES = [
     "Aline Uwase",
     "Jean Bosco Habimana",
@@ -210,6 +227,8 @@ CHILD_NAMES = [
 
 def wipe(db: Session) -> None:
     for model in (
+        AuditLog,
+        SystemSetting,
         Notification,
         CommunityAlert,
         HealthSignal,
@@ -324,7 +343,19 @@ def seed(db: Session) -> None:
                 audience=ContentAudience.PARENT,
                 status=ContentStatus.PUBLISHED,
                 reviewed_by=reviewer,
-                published_at=None,
+                published_at=datetime.now(UTC),
+            )
+        )
+    for slug, title, summary, cat in DRAFT_ARTICLES:
+        db.add(
+            Article(
+                slug=slug,
+                title=title,
+                summary=summary,
+                category=cat,
+                body=f"{summary}\n\n(Draft demo article awaiting review.)",
+                audience=ContentAudience.PARENT,
+                status=ContentStatus.IN_REVIEW,
             )
         )
 

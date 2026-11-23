@@ -35,9 +35,22 @@ Demo accounts (password `SmartKids123!`):
 | analyst@example.com        | Analyst         | Overview, map, signals, alerts          |
 | reviewer@example.com       | Health reviewer | Same as analyst + approves alerts       |
 | institution@example.com    | Institution     | Aggregated, read-only insights          |
-| admin@example.com          | Admin           | Everything                              |
+| admin@example.com          | Admin           | Everything + the Administration area    |
 
 Run `make help` to see every command.
+
+## Administration area (admin role)
+
+| Page            | What it does                                                                 |
+|-----------------|------------------------------------------------------------------------------|
+| Admin dashboard | Users, sign-ins, reports per day, live status of database/Redis/SeaweedFS/workers, storage usage, recent activity |
+| Users           | Search/filter, create staff accounts (temporary password), change role, activate/deactivate, reset password |
+| Places          | Add/edit/delete schools, health facilities and infrastructure; pick the location on a map |
+| Content         | Write, publish, archive and delete guidance articles; upload cover images     |
+| Audit log       | Every sign-in, user change, alert step, signal decision, setting change, with IP |
+| Settings        | Tune signal detection thresholds and the privacy minimum group size without a redeploy |
+
+Staff users can also export de-identified aggregates as CSV from the Overview page.
 
 ## Tech stack
 

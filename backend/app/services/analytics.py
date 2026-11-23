@@ -3,10 +3,10 @@
 from collections import defaultdict
 from datetime import date, timedelta
 
+from geoalchemy2.shape import to_shape
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.core.config import settings
 from app.models import (
     AdministrativeArea,
     Child,
@@ -28,14 +28,15 @@ from app.schemas.analytics import (
 )
 from app.schemas.common import LatLng
 from app.services.surveillance import OPEN_STATUSES
+from app.services.system_settings import get_detection_settings
 
 
 def _since(days: int) -> date:
     return date.today() - timedelta(days=days - 1)
 
 
-def _suppress(count: int) -> tuple[int | None, bool]:
-    if count < settings.aggregate_min_cell_size:
+def _suppress(count: int, min_size: int) -> tuple[int | None, bool]:
+    if count < min_size:
         return None, True
     return count, False
 
@@ -43,8 +44,6 @@ def _suppress(count: int) -> tuple[int | None, bool]:
 def _latlng(geom) -> LatLng | None:
     if geom is None:
         return None
-    from geoalchemy2.shape import to_shape
-
     p = to_shape(geom)
     return LatLng(latitude=p.y, longitude=p.x)
 
@@ -84,6 +83,7 @@ def overview(db: Session) -> Overview:
 def area_aggregates(
     db: Session, days: int, category: SymptomCategory | None
 ) -> list[AreaAggregate]:
+    min_size = get_detection_settings(db).aggregate_min_cell_size
     base = select(SymptomReport.area_id, func.count(func.distinct(SymptomReport.id))).where(
         SymptomReport.consent_to_aggregate.is_(True),
         SymptomReport.onset_date >= _since(days),
@@ -111,7 +111,7 @@ def area_aggregates(
     areas = db.scalars(select(AdministrativeArea).where(AdministrativeArea.id.in_(counts))).all()
     result = []
     for area in areas:
-        count, suppressed = _suppress(counts[area.id])
+        count, suppressed = _suppress(counts[area.id], min_size)
         result.append(
             AreaAggregate(
                 area_id=area.id,
@@ -128,6 +128,7 @@ def area_aggregates(
 def school_aggregates(
     db: Session, days: int, category: SymptomCategory | None
 ) -> list[SchoolAggregate]:
+    min_size = get_detection_settings(db).aggregate_min_cell_size
     base = select(SymptomReport.school_id, func.count(func.distinct(SymptomReport.id))).where(
         SymptomReport.consent_to_aggregate.is_(True),
         SymptomReport.onset_date >= _since(days),
@@ -139,7 +140,7 @@ def school_aggregates(
     schools = db.scalars(select(School).where(School.id.in_(counts))).all()
     result = []
     for s in schools:
-        count, suppressed = _suppress(counts[s.id])
+        count, suppressed = _suppress(counts[s.id], min_size)
         result.append(
             SchoolAggregate(
                 school_id=s.id,

@@ -90,6 +90,20 @@ detected ──▶ under_review ──▶ confirmed ──▶ resolved
     └──▶ dismissed ◀┘   (dismissed can be re-opened to under_review)
 ```
 
+## Administration
+
+- **Audit log** (`audit_logs`, `services/audit.py`): append-only. `audit.record(...)` is staged in
+  the same transaction as the change it describes, so a change and its audit entry are committed
+  together. Recorded: sign-ins, user create/update/role change/(de)activation/password reset,
+  alert lifecycle, signal transitions, report verification, article status changes, place edits,
+  settings changes.
+- **Runtime settings** (`system_settings`, `services/system_settings.py`): signal-detection
+  thresholds and `aggregate_min_cell_size` default to the environment variables and can be
+  overridden by admins at `/api/v1/admin/settings/detection`. Detection and analytics always read
+  the effective value.
+- **System status** (`/api/v1/admin/system`): live checks of PostGIS, Redis, SeaweedFS and Celery
+  workers, plus per-bucket object counts and sizes.
+
 ## File storage (SeaweedFS)
 
 | Bucket              | Contents                          | Access                                   |

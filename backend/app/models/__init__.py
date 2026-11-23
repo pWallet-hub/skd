@@ -1,5 +1,6 @@
 """Import every model here so SQLAlchemy and Alembic see the full metadata."""
 
+from app.models.admin import AuditLog, SystemSetting
 from app.models.content import Article
 from app.models.family import Child, GrowthMeasurement
 from app.models.geo import AdministrativeArea, HealthFacility, InfrastructureAsset, School
@@ -11,6 +12,7 @@ from app.models.user import User
 __all__ = [
     "AdministrativeArea",
     "Article",
+    "AuditLog",
     "Child",
     "CommunityAlert",
     "GrowthMeasurement",
@@ -22,6 +24,7 @@ __all__ = [
     "School",
     "Symptom",
     "SymptomReport",
+    "SystemSetting",
     "User",
     "report_symptoms",
 ]

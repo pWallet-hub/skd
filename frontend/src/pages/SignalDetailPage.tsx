@@ -4,8 +4,10 @@ import { Link, useParams } from "react-router-dom";
 import { get, post } from "../api/client";
 import type { Signal, SignalStatus } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
-import { Badge, Card, ErrorText, Loading } from "../components/ui";
-import { formatDate } from "../utils/format";
+import { ArrowLeft, MapIcon, Megaphone } from "../components/icons";
+import { useToast } from "../components/Toast";
+import { Badge, Button, Card, ErrorText, Loading, PageHeader, StatCard } from "../components/ui";
+import { formatDate, formatDateTime, humanize } from "../utils/format";
 
 const NEXT: Record<SignalStatus, SignalStatus[]> = {
   detected: ["under_review", "dismissed"],
@@ -14,10 +16,18 @@ const NEXT: Record<SignalStatus, SignalStatus[]> = {
   dismissed: ["under_review"],
   resolved: [],
 };
+const ACTION_LABEL: Record<SignalStatus, string> = {
+  under_review: "Start review",
+  confirmed: "Confirm concern",
+  dismissed: "Dismiss",
+  resolved: "Mark resolved",
+  detected: "Reopen",
+};
 
 export default function SignalDetailPage() {
   const { id } = useParams();
   const { user } = useAuth();
+  const toast = useToast();
   const qc = useQueryClient();
   const [note, setNote] = useState("");
   const signal = useQuery({ queryKey: ["signal", id], queryFn: () => get<Signal>(`/signals/${id}`) });
@@ -29,76 +39,76 @@ export default function SignalDetailPage() {
   };
   const transition = useMutation({
     mutationFn: (status: SignalStatus) => post(`/signals/${id}/transition`, { status, note }),
-    onSuccess: refresh,
+    onSuccess: (_, status) => {
+      refresh();
+      toast(`Signal moved to “${humanize(status)}”`);
+    },
   });
-  const addNote = useMutation({
-    mutationFn: () => post(`/signals/${id}/notes`, { body: note }),
-    onSuccess: refresh,
-  });
+  const addNote = useMutation({ mutationFn: () => post(`/signals/${id}/notes`, { body: note }), onSuccess: refresh });
 
-  if (signal.isLoading) return <Loading />;
+  if (signal.isLoading) return <Loading rows={6} />;
   const s = signal.data;
   if (!s) return <ErrorText error={signal.error} />;
-  const canAct = user && ["analyst", "health_reviewer", "admin"].includes(user.role);
+  const canAct = !!user && ["analyst", "health_reviewer", "admin"].includes(user.role);
 
   return (
-    <div className="grid">
-      <Card title={`Signal #${s.id} — ${s.symptom_category}`} actions={<Badge value={s.status} />}>
-        <dl className="facts">
-          <dt>Where</dt>
-          <dd>{s.school?.name ?? s.area?.name}</dd>
-          <dt>Window</dt>
-          <dd>
-            {formatDate(s.window_start)} – {formatDate(s.window_end)}
-          </dd>
-          <dt>Reports</dt>
-          <dd>
-            {s.report_count} (expected ~{s.baseline_count}, ×{s.score})
-          </dd>
-          <dt>Findings</dt>
-          <dd>{s.findings ?? "—"}</dd>
-        </dl>
-        <Link to="/map">View on map →</Link>
-      </Card>
+    <>
+      <Link to="/signals" className="small row" style={{ gap: 4, marginTop: 8 }}><ArrowLeft size={14} /> All signals</Link>
+      <PageHeader
+        title={`${humanize(s.symptom_category)} — ${s.school?.name ?? s.area?.name}`}
+        subtitle={<>Signal #{s.id} · detected {formatDateTime(s.detected_at)} · <Badge value={s.status} /></>}
+        actions={
+          <>
+            <Link to="/map" className="btn btn-secondary"><MapIcon size={16} /> View on map</Link>
+            {canAct && s.status === "confirmed" && (
+              <Link to={`/alerts?signal=${s.id}`} className="btn btn-primary"><Megaphone size={16} /> Draft community alert</Link>
+            )}
+          </>
+        }
+      />
+      <div className="grid grid-3" style={{ marginBottom: 18 }}>
+        <StatCard label="Reports in window" value={s.report_count} tone="danger" icon={<strong>#</strong>} sub={`${formatDate(s.window_start)} – ${formatDate(s.window_end)}`} />
+        <StatCard label="Expected (baseline)" value={s.baseline_count} tone="info" icon={<strong>≈</strong>} />
+        <StatCard label="Ratio to baseline" value={`×${s.score}`} tone="warn" icon={<strong>×</strong>} />
+      </div>
 
-      <Card title="Investigation log">
-        <ul className="list">
-          {s.notes?.map((n) => (
-            <li key={n.id}>
-              <span className="muted small">{new Date(n.created_at).toLocaleString()}</span>
-              {n.status_change && <Badge value={n.status_change.split("->")[1]} />}
-              <div>{n.body}</div>
-            </li>
-          ))}
-          {s.notes?.length === 0 && <li className="muted">No notes yet.</li>}
-        </ul>
-        {canAct && (
-          <div className="form">
-            <textarea
-              rows={3}
-              placeholder="Note (required for status changes)"
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-            />
-            <div className="row">
-              <button className="secondary" disabled={!note || addNote.isPending} onClick={() => addNote.mutate()}>
-                Add note
-              </button>
-              {NEXT[s.status].map((st) => (
-                <button key={st} disabled={note.length < 3 || transition.isPending} onClick={() => transition.mutate(st)}>
-                  Move to {st.replace("_", " ")}
-                </button>
-              ))}
+      <div className="grid grid-main">
+        <Card title="Investigation log" subtitle="Every status change is recorded with a note">
+          {s.notes?.length === 0 && <p className="muted">No notes yet.</p>}
+          <ol className="timeline">
+            {s.notes?.map((n) => (
+              <li key={n.id}>
+                <div className="row">
+                  {n.status_change && <Badge value={n.status_change.split("->")[1]} />}
+                  <span className="muted small">{formatDateTime(n.created_at)}</span>
+                </div>
+                <p style={{ marginTop: 4 }}>{n.body}</p>
+              </li>
+            ))}
+          </ol>
+          {canAct && (
+            <div className="form" style={{ marginTop: 8 }}>
+              <textarea className="input" rows={3} placeholder="Add a note (required for status changes)…" value={note} onChange={(e) => setNote(e.target.value)} />
+              <div className="row">
+                {NEXT[s.status].map((st) => (
+                  <Button key={st} variant={st === "dismissed" ? "secondary" : "primary"} disabled={note.trim().length < 3 || transition.isPending} onClick={() => transition.mutate(st)}>
+                    {ACTION_LABEL[st]}
+                  </Button>
+                ))}
+                <Button variant="ghost" disabled={!note.trim() || addNote.isPending} onClick={() => addNote.mutate()}>Add note only</Button>
+              </div>
+              <ErrorText error={transition.error ?? addNote.error} />
             </div>
-            <ErrorText error={transition.error ?? addNote.error} />
+          )}
+        </Card>
+        <Card title="Findings">
+          <p className={s.findings ? "" : "muted"}>{s.findings ?? "No findings recorded yet."}</p>
+          <div className="callout info" style={{ marginTop: 16 }}>
+            Detection compares the last window with the preceding baseline. It cannot tell the cause — verification
+            by health professionals is required before any public communication.
           </div>
-        )}
-        {canAct && s.status === "confirmed" && (
-          <Link to={`/alerts?signal=${s.id}`} className="button">
-            Draft community alert
-          </Link>
-        )}
-      </Card>
-    </div>
+        </Card>
+      </div>
+    </>
   );
 }

@@ -80,6 +80,7 @@ export interface School {
   name: string;
   area_id: number | null;
   location: LatLng | null;
+  is_verified: boolean;
 }
 
 export interface Facility {
@@ -87,16 +88,20 @@ export interface Facility {
   name: string;
   facility_type: string;
   location: LatLng | null;
+  area_id: number | null;
   phone_number: string | null;
   opening_hours: string | null;
+  is_verified: boolean;
 }
 
 export interface Infrastructure {
   id: number;
   name: string;
   asset_type: string;
+  area_id: number | null;
   location: LatLng | null;
   data_source: string | null;
+  notes: string | null;
 }
 
 export interface Overview {
@@ -174,4 +179,86 @@ export interface Article {
   summary: string;
   category: string;
   cover_image_url: string | null;
+}
+
+// ---------------------------------------------------------------- admin ----
+export interface Page<T> {
+  items: T[];
+  total: number;
+}
+
+export interface AdminUser {
+  id: number;
+  email: string;
+  full_name: string;
+  phone_number: string | null;
+  role: UserRole;
+  is_active: boolean;
+  home_area_id: number | null;
+  last_login_at: string | null;
+  created_at: string;
+  children_count: number;
+}
+
+export interface DailyCount {
+  day: string;
+  count: number;
+}
+
+export interface AdminStats {
+  total_users: number;
+  active_users: number;
+  inactive_users: number;
+  new_users_30d: number;
+  logins_7d: number;
+  users_by_role: { role: UserRole; count: number }[];
+  reports_per_day: DailyCount[];
+  signups_per_day: DailyCount[];
+  articles_published: number;
+  articles_draft: number;
+  schools: number;
+  facilities: number;
+  infrastructure: number;
+}
+
+export interface SystemStatus {
+  environment: string;
+  version: string;
+  services: { name: string; ok: boolean; latency_ms: number | null; detail: string }[];
+  storage: { bucket: string; objects: number; size_bytes: number }[];
+}
+
+export interface AuditEntry {
+  id: number;
+  actor_email: string | null;
+  action: string;
+  entity_type: string;
+  entity_id: string | null;
+  summary: string;
+  details: Record<string, unknown>;
+  ip_address: string | null;
+  created_at: string;
+}
+
+export interface DetectionSettings {
+  signal_window_days: number;
+  signal_baseline_days: number;
+  signal_min_reports: number;
+  signal_ratio_threshold: number;
+  aggregate_min_cell_size: number;
+}
+
+export interface TrendPoint {
+  day: string;
+  category: SymptomCategory;
+  count: number;
+}
+
+export interface ArticleFull extends Article {
+  body: string;
+  audience: "parent" | "child";
+  status: "draft" | "in_review" | "published" | "archived";
+  min_age_months: number | null;
+  max_age_months: number | null;
+  published_at: string | null;
 }

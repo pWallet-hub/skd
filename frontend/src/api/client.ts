@@ -74,3 +74,25 @@ export const post = <T>(path: string, data?: unknown) =>
   api<T>(path, { method: "POST", body: data === undefined ? undefined : JSON.stringify(data) });
 export const patch = <T>(path: string, data: unknown) =>
   api<T>(path, { method: "PATCH", body: JSON.stringify(data) });
+export const put = <T>(path: string, data: unknown) =>
+  api<T>(path, { method: "PUT", body: JSON.stringify(data) });
+export const del = (path: string) => api<void>(path, { method: "DELETE" });
+
+/** Multipart upload (e.g. images to SeaweedFS through the API). */
+export function upload<T>(path: string, file: File, method: "PUT" | "POST" = "PUT") {
+  const form = new FormData();
+  form.append("file", file);
+  return api<T>(path, { method, body: form });
+}
+
+/** Authenticated file download (e.g. CSV export). */
+export async function download(path: string, filename: string) {
+  const res = await fetch(`${API_BASE}${path}`, {
+    headers: tokenStore.access ? { Authorization: `Bearer ${tokenStore.access}` } : {},
+  });
+  if (!res.ok) throw new ApiError(res.status, "Download failed");
+  const url = URL.createObjectURL(await res.blob());
+  const a = Object.assign(document.createElement("a"), { href: url, download: filename });
+  a.click();
+  URL.revokeObjectURL(url);
+}

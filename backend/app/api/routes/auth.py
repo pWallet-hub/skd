@@ -1,7 +1,8 @@
+from datetime import UTC, datetime
 from typing import Annotated
 
 import jwt
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import select
 
@@ -17,6 +18,7 @@ from app.schemas.user import (
     UserRead,
     UserUpdate,
 )
+from app.services import audit
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -28,10 +30,17 @@ def _tokens(user: User) -> TokenPair:
     )
 
 
-def _authenticate(db: DbSession, email: str, password: str) -> User:
+def _authenticate(db: DbSession, email: str, password: str, request: Request) -> User:
     user = db.scalar(select(User).where(User.email == email.lower()))
-    if not user or not user.is_active or not verify_password(password, user.password_hash):
+    if not user or not verify_password(password, user.password_hash):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Incorrect email or password")
+    if not user.is_active:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "This account has been deactivated")
+    user.last_login_at = datetime.now(UTC)
+    audit.record(
+        db, user, "auth.login", "user", user.id, f"{user.email} signed in", request=request
+    )
+    db.commit()
     return user
 
 
@@ -56,14 +65,16 @@ def register_parent(payload: ParentRegister, db: DbSession) -> User:
 
 
 @router.post("/login", response_model=TokenPair)
-def login(payload: LoginRequest, db: DbSession) -> TokenPair:
-    return _tokens(_authenticate(db, payload.email, payload.password))
+def login(payload: LoginRequest, db: DbSession, request: Request) -> TokenPair:
+    return _tokens(_authenticate(db, payload.email, payload.password, request))
 
 
 @router.post("/token", response_model=TokenPair, include_in_schema=False)
-def login_form(form: Annotated[OAuth2PasswordRequestForm, Depends()], db: DbSession) -> TokenPair:
+def login_form(
+    form: Annotated[OAuth2PasswordRequestForm, Depends()], db: DbSession, request: Request
+) -> TokenPair:
     """OAuth2 password flow, used by the 'Authorize' button in Swagger UI."""
-    return _tokens(_authenticate(db, form.username, form.password))
+    return _tokens(_authenticate(db, form.username, form.password, request))
 
 
 @router.post("/refresh", response_model=TokenPair)

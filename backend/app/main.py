@@ -4,10 +4,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.router import api_router
 from app.api.routes import health
 from app.core.config import settings
+from app.core.version import VERSION
 
 app = FastAPI(
     title=settings.project_name,
-    version="0.1.0",
+    version=VERSION,
     description=(
         "API for SmartKids – Smile & Grow. Parent-reported symptoms are observations, "
         "not diagnoses; community signals require human review before any alert."

@@ -1,8 +1,8 @@
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Request, status
 from geoalchemy2 import Geography
 from sqlalchemy import cast, func, select
 
-from app.api.deps import CurrentUser, DbSession
+from app.api.deps import AdminUser, CurrentUser, DbSession, get_or_404
 from app.models import AdministrativeArea, HealthFacility, InfrastructureAsset, School
 from app.models.enums import AreaLevel, FacilityType, InfrastructureType
 from app.schemas.common import LatLng
@@ -10,9 +10,16 @@ from app.schemas.geo import (
     AreaRead,
     FacilityNearby,
     FacilityRead,
+    FacilityUpdate,
+    FacilityWrite,
     InfrastructureRead,
+    InfrastructureUpdate,
+    InfrastructureWrite,
     SchoolRead,
+    SchoolUpdate,
+    SchoolWrite,
 )
+from app.services import audit
 
 router = APIRouter(prefix="/geo", tags=["geography"])
 
@@ -94,3 +101,93 @@ def list_infrastructure(
     if area_id is not None:
         stmt = stmt.where(InfrastructureAsset.area_id == area_id)
     return list(db.scalars(stmt))
+
+
+# ---- administration: create / update / delete reference places -------------
+PLACES: dict[str, tuple[type, type, type, type, str]] = {
+    "schools": (School, SchoolWrite, SchoolUpdate, SchoolRead, "school"),
+    "facilities": (HealthFacility, FacilityWrite, FacilityUpdate, FacilityRead, "facility"),
+    "infrastructure": (
+        InfrastructureAsset,
+        InfrastructureWrite,
+        InfrastructureUpdate,
+        InfrastructureRead,
+        "infrastructure",
+    ),
+}
+
+
+def _apply(obj, data: dict) -> None:
+    location = data.pop("location", ...)
+    if location is not ...:
+        obj.location = LatLng(**location).to_geometry() if location else None
+    for field, value in data.items():
+        setattr(obj, field, value)
+
+
+def _register_place_admin(path: str) -> None:
+    model, write_schema, update_schema, read_schema, entity = PLACES[path]
+
+    @router.post(
+        f"/{path}",
+        response_model=read_schema,
+        status_code=status.HTTP_201_CREATED,
+        name=f"create_{entity}",
+    )
+    def create(payload: write_schema, admin: AdminUser, db: DbSession, request: Request):  # type: ignore[valid-type]
+        obj = model()
+        _apply(obj, payload.model_dump())
+        db.add(obj)
+        db.flush()
+        audit.record(
+            db,
+            admin,
+            f"{entity}.create",
+            entity,
+            obj.id,
+            f"Created {entity} {obj.name}",
+            request=request,
+        )
+        db.commit()
+        db.refresh(obj)
+        return obj
+
+    @router.patch(f"/{path}/{{obj_id}}", response_model=read_schema, name=f"update_{entity}")
+    def update(
+        obj_id: int, payload: update_schema, admin: AdminUser, db: DbSession, request: Request
+    ):  # type: ignore[valid-type]
+        obj = get_or_404(db, model, obj_id)
+        _apply(obj, payload.model_dump(exclude_unset=True))
+        audit.record(
+            db,
+            admin,
+            f"{entity}.update",
+            entity,
+            obj.id,
+            f"Updated {entity} {obj.name}",
+            request=request,
+        )
+        db.commit()
+        db.refresh(obj)
+        return obj
+
+    @router.delete(
+        f"/{path}/{{obj_id}}", status_code=status.HTTP_204_NO_CONTENT, name=f"delete_{entity}"
+    )
+    def delete(obj_id: int, admin: AdminUser, db: DbSession, request: Request) -> None:
+        obj = get_or_404(db, model, obj_id)
+        audit.record(
+            db,
+            admin,
+            f"{entity}.delete",
+            entity,
+            obj.id,
+            f"Deleted {entity} {obj.name}",
+            request=request,
+        )
+        db.delete(obj)
+        db.commit()
+
+
+for _path in PLACES:
+    _register_place_admin(_path)
