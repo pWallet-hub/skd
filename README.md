@@ -93,8 +93,8 @@ Staff users can also export de-identified aggregates as CSV from the Overview pa
 │   ├── postgres/            PostGIS image + first-boot scripts
 │   └── seaweedfs/           SeaweedFS image; S3 identities generated from env
 ├── docs/                    product vision, architecture, developer guide
-├── compose.yaml             local development stack
-├── compose.prod.yaml        production stack (standalone — deploy this one)
+├── compose.yaml             production stack (what Coolify deploys)
+├── compose.override.yaml    local development additions (auto-loaded by docker compose)
 ├── Makefile                 developer commands (make help)
 └── .env.example             all configuration, documented
 ```

@@ -69,4 +69,5 @@ tables are truncated after every test.
 
 ## Production
 
-See [deployment.md](deployment.md). Deploy `compose.prod.yaml` (standalone), never `compose.yaml`.
+`compose.yaml` is the production stack; `compose.override.yaml` adds the development setup and is
+loaded automatically by `docker compose` (and `make`) on your machine. See [deployment.md](deployment.md).
