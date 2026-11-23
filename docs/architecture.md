@@ -112,7 +112,8 @@ detected ──▶ under_review ──▶ confirmed ──▶ resolved
 | `smartkids-private` | child photos, attachments         | presigned URL (15 min), guardian only    |
 
 Presigned URLs are signed against `PUBLIC_BASE_URL`; nginx forwards the original `Host`
-header to SeaweedFS so the signature verifies. Identities are in `infra/seaweedfs/s3.json`.
+header to SeaweedFS so the signature verifies. S3 identities are generated from `S3_ACCESS_KEY` /
+`S3_SECRET_KEY` at container start (`infra/seaweedfs/generate-s3-config.sh`).
 Buckets are created on backend start (`app/scripts/init_storage.py`).
 
 ## Privacy & safety controls

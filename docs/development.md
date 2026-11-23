@@ -69,13 +69,4 @@ tables are truncated after every test.
 
 ## Production
 
-`compose.prod.yaml` builds the production targets (no bind mounts, uvicorn workers, static
-frontend served by nginx):
-
-```bash
-docker compose -f compose.yaml -f compose.prod.yaml up -d --build
-```
-
-Before going live: set a strong `SECRET_KEY`, new database and S3 credentials (also in
-`infra/seaweedfs/s3.json`), `ENVIRONMENT=production`, the real `PUBLIC_BASE_URL`, and put TLS
-in front of nginx. Remove the published database/SeaweedFS ports.
+See [deployment.md](deployment.md). Deploy `compose.prod.yaml` (standalone), never `compose.yaml`.

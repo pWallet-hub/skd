@@ -5,7 +5,7 @@ content and community services, and turns voluntary, aggregated reports into
 **community-level health signals** that trained people review before anyone is alerted.
 
 > Product vision and scope: [docs/product-vision.md](docs/product-vision.md)
-> Architecture: [docs/architecture.md](docs/architecture.md) · Developer guide: [docs/development.md](docs/development.md)
+> Architecture: [docs/architecture.md](docs/architecture.md) · Developer guide: [docs/development.md](docs/development.md) · Deployment (Coolify): [docs/deployment.md](docs/deployment.md)
 
 ---
 
@@ -89,12 +89,12 @@ Staff users can also export de-identified aggregates as CSV from the Overview pa
 │   ├── src/pages/           one file per screen
 │   └── Dockerfile           development + production targets
 ├── infra/
-│   ├── nginx/               edge proxy config (template)
-│   ├── postgres/initdb/     first-boot SQL (PostGIS, test DB)
-│   └── seaweedfs/           S3 identities/permissions
+│   ├── nginx/               edge proxy image (config template baked in)
+│   ├── postgres/            PostGIS image + first-boot scripts
+│   └── seaweedfs/           SeaweedFS image; S3 identities generated from env
 ├── docs/                    product vision, architecture, developer guide
 ├── compose.yaml             local development stack
-├── compose.prod.yaml        production overrides
+├── compose.prod.yaml        production stack (standalone — deploy this one)
 ├── Makefile                 developer commands (make help)
 └── .env.example             all configuration, documented
 ```
