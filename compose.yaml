@@ -1,0 +1,135 @@
+# SmartKids – Smile & Grow
+# Local development stack. Start everything with:  make up   (or: docker compose up -d --build)
+# Single entrypoint for the browser: http://localhost:${APP_PORT:-8000}
+
+name: smartkids
+
+x-backend-common: &backend-common
+  build:
+    context: ./backend
+    target: development
+  image: smartkids-backend:dev
+  env_file: .env
+  volumes:
+    - ./backend:/app
+  depends_on:
+    db:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+    seaweedfs:
+      condition: service_healthy
+  restart: unless-stopped
+
+services:
+  # ---------------------------------------------------------------- data ----
+  db:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infra/postgres/initdb:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "${POSTGRES_HOST_PORT:-5433}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  # Object storage for images and uploaded files (S3-compatible API on :8333)
+  seaweedfs:
+    image: chrislusf/seaweedfs:4.53
+    command: >
+      server -dir=/data -ip=seaweedfs -ip.bind=0.0.0.0
+      -master.volumeSizeLimitMB=1024 -volume.max=0
+      -s3 -s3.port=8333 -s3.config=/etc/seaweedfs/s3.json
+    volumes:
+      - seaweedfs_data:/data
+      - ./infra/seaweedfs/s3.json:/etc/seaweedfs/s3.json:ro
+    ports:
+      - "${SEAWEEDFS_MASTER_HOST_PORT:-9333}:9333"   # master UI
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:9333/cluster/status || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+
+  # -------------------------------------------------------------- backend ----
+  backend:
+    <<: *backend-common
+    command: ["sh", "/app/scripts/start-dev.sh"]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8000/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  worker:
+    <<: *backend-common
+    command: ["celery", "-A", "app.workers.celery_app", "worker", "--loglevel=INFO"]
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  scheduler:
+    <<: *backend-common
+    command: ["celery", "-A", "app.workers.celery_app", "beat", "--loglevel=INFO", "--schedule=/tmp/celerybeat-schedule"]
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  # ------------------------------------------------------------- frontend ----
+  frontend:
+    build:
+      context: ./frontend
+      target: development
+    image: smartkids-frontend:dev
+    env_file: .env
+    volumes:
+      - ./frontend:/app
+      - frontend_node_modules:/app/node_modules
+    restart: unless-stopped
+
+  # ----------------------------------------------------------------- edge ----
+  nginx:
+    image: nginx:1.27-alpine
+    env_file: .env
+    volumes:
+      - ./infra/nginx/templates:/etc/nginx/templates:ro
+    ports:
+      - "${APP_PORT:-8000}:80"
+    depends_on:
+      - backend
+      - frontend
+      - seaweedfs
+    restart: unless-stopped
+
+  # Catches all outgoing email in development: http://localhost:8025
+  mailpit:
+    image: axllent/mailpit:v1.21
+    ports:
+      - "${MAILPIT_HOST_PORT:-8025}:8025"
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+  seaweedfs_data:
+  frontend_node_modules:

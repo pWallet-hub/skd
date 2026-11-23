@@ -1,0 +1,39 @@
+# Production overrides:
+#   docker compose -f compose.yaml -f compose.prod.yaml up -d --build
+
+x-backend-prod: &backend-prod
+  build:
+    context: ./backend
+    target: production
+  image: smartkids-backend:latest
+  volumes: !reset []
+
+services:
+  db:
+    ports: !reset []
+
+  seaweedfs:
+    ports: !reset []
+
+  backend:
+    <<: *backend-prod
+    command: ["sh", "/app/scripts/start-prod.sh"]
+
+  worker:
+    <<: *backend-prod
+
+  scheduler:
+    <<: *backend-prod
+
+  frontend:
+    build:
+      context: ./frontend
+      target: production
+    image: smartkids-frontend:latest
+    volumes: !reset []
+
+  mailpit:
+    profiles: ["dev"]   # not started in production
+
+volumes:
+  frontend_node_modules:

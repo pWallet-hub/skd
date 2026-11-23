@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepare environment
+        run: cp .env.example .env
+
+      - name: Build and start services
+        run: docker compose up -d --build --wait db redis seaweedfs backend
+
+      - name: Backend lint
+        run: |
+          docker compose exec -T backend ruff check .
+          docker compose exec -T backend ruff format --check .
+
+      - name: Backend tests
+        run: docker compose exec -T backend pytest
+
+      - name: Frontend lint, typecheck and build
+        run: |
+          docker compose run --rm --no-deps frontend sh -c "npm ci && npm run lint && npm run typecheck && npm run build"
+
+      - name: Logs on failure
+        if: failure()
+        run: docker compose logs --tail 200
+
+      - name: Stop
+        if: always()
+        run: docker compose down -v

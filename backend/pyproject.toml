@@ -1,0 +1,22 @@
+[project]
+name = "smartkids-backend"
+version = "0.1.0"
+description = "SmartKids – Smile & Grow API"
+requires-python = ">=3.12"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["alembic/versions"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM"]
+ignore = ["B008"]  # FastAPI uses function calls (Depends) in defaults
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/conftest.py" = ["E402"]     # settings must be patched before app imports
+"app/scripts/seed.py" = ["E501"]   # long demo-data literals
