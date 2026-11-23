@@ -1,6 +1,10 @@
-# SmartKids – Smile & Grow — PRODUCTION stack (standalone; used by Coolify).
+# SmartKids – Smile & Grow — Docker Compose
 #
-#   docker compose -f compose.prod.yaml up -d --build
+# This file is the PRODUCTION stack and is what Coolify (or any server) deploys:
+#   docker compose -f compose.yaml up -d --build
+#
+# For local development, `docker compose up` / `make up` ALSO loads compose.override.yaml
+# automatically, which switches to dev images, mounts the source code and publishes ports.
 #
 # Rules for this file:
 #   * No bind mounts — every config file is baked into an image (infra/*/Dockerfile),
@@ -40,6 +44,8 @@ x-backend-env: &backend-env
   SIGNAL_RATIO_THRESHOLD: ${SIGNAL_RATIO_THRESHOLD:-2.0}
   AGGREGATE_MIN_CELL_SIZE: ${AGGREGATE_MIN_CELL_SIZE:-3}
   WEB_CONCURRENCY: ${WEB_CONCURRENCY:-2}
+  # true = load the fictional demo data on first start (only if the database has no users)
+  SEED_DEMO_DATA: ${SEED_DEMO_DATA:-false}
 
 x-backend: &backend
   build:

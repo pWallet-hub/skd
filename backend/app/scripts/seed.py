@@ -2,16 +2,19 @@
 
     make seed     # or: docker compose exec backend python -m app.scripts.seed
 
+With --if-empty it only seeds a database that has no users (used by SEED_DEMO_DATA=true).
+
 Administrative area names are real Kigali districts/sectors so the map looks right, but
 every family, child, school, facility, infrastructure item and report is invented.
 The data contains a deliberately injected cluster of gastrointestinal reports around one
 school so the signal-detection workflow can be demonstrated. It is NOT a real health event.
 """
 
+import argparse
 import random
 from datetime import UTC, date, datetime, timedelta
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from app.core.database import SessionLocal
@@ -463,7 +466,17 @@ def seed(db: Session) -> None:
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description="Load fictional demo data.")
+    parser.add_argument(
+        "--if-empty",
+        action="store_true",
+        help="Only seed when the database has no users (safe for automatic start-up use).",
+    )
+    args = parser.parse_args()
     with SessionLocal() as db:
+        if args.if_empty and db.scalar(select(func.count(User.id))):
+            print("Database already has users; skipping demo seed.")
+            return
         seed(db)
 
 
