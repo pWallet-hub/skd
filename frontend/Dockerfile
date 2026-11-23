@@ -11,6 +11,8 @@ CMD ["sh", "-c", "npm install --no-audit --no-fund && npm run dev"]
 
 # --------------------------------------------------------------- build -------
 FROM node:22-alpine AS build
+ARG VITE_MAP_TILE_URL=""
+ENV VITE_MAP_TILE_URL=$VITE_MAP_TILE_URL
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
