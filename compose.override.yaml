@@ -47,12 +47,23 @@ services:
     volumes:
       - ./frontend:/app
       - frontend_node_modules:/app/node_modules
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:5173/ || exit 1"]
 
+  # Dev-only edge proxy: /api -> backend, files -> SeaweedFS, everything else -> Vite (hot reload).
+  # (In production the frontend container does this itself.)
   nginx:
+    build: ./infra/nginx
     environment:
       FRONTEND_UPSTREAM: frontend:5173
+      S3_BUCKET_PUBLIC: ${S3_BUCKET_PUBLIC:-smartkids-public}
+      S3_BUCKET_PRIVATE: ${S3_BUCKET_PRIVATE:-smartkids-private}
     ports:
       - "${APP_PORT:-8000}:80"
+    depends_on:
+      - backend
+      - frontend
+    restart: unless-stopped
 
   # Catches all outgoing email in development: http://localhost:8025
   mailpit:

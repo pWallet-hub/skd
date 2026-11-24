@@ -7,7 +7,7 @@
                             │  http://localhost:8000
                             ▼
                      ┌─────────────┐
-                     │    nginx    │  single entry point
+                     │    nginx    │  single entry point (prod: the frontend container)
                      └──┬───┬───┬──┘
           /api/*        │   │   │   /<bucket>/*  (images/files)
      ┌──────────────────┘   │   └───────────────────────┐

@@ -1,0 +1,43 @@
+# Production web server AND public entry point (rendered with envsubst at start-up).
+#   /api/*                -> FastAPI backend
+#   /<public bucket>/*    -> SeaweedFS (anonymous read)
+#   /<private bucket>/*   -> SeaweedFS (signed URLs only; Host is preserved so signatures verify)
+#   /*                    -> the built single-page app
+
+# Keep the original scheme when running behind another proxy (e.g. Coolify/Traefik doing TLS).
+map $http_x_forwarded_proto $forwarded_proto {
+    default $http_x_forwarded_proto;
+    ''      $scheme;
+}
+
+server {
+    listen 80;
+    server_name _;
+    root /usr/share/nginx/html;
+    index index.html;
+    client_max_body_size 20m;
+
+    location /api/ {
+        proxy_pass http://${BACKEND_UPSTREAM};
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $forwarded_proto;
+    }
+
+    location ~ ^/(${S3_BUCKET_PUBLIC}|${S3_BUCKET_PRIVATE})/ {
+        limit_except GET HEAD { deny all; }
+        proxy_pass http://${STORAGE_UPSTREAM};
+        proxy_set_header Host $http_host;
+        proxy_buffering off;
+    }
+
+    location /assets/ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+
+    location / {
+        try_files $uri /index.html;
+    }
+}

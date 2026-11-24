@@ -9,7 +9,7 @@
 # Rules for this file:
 #   * No bind mounts — every config file is baked into an image (infra/*/Dockerfile),
 #     because platforms like Coolify do not have the repository files on the host.
-#   * No published host ports — the platform's proxy routes the domain to `nginx:80`.
+#   * No published host ports — the platform's proxy routes the domain to `frontend:80`.
 #   * Configuration comes only from environment variables (set them in Coolify).
 #     Variables marked :? are required; the deployment fails fast if they are missing.
 
@@ -131,33 +131,31 @@ services:
       backend:
         condition: service_healthy
 
+  # PUBLIC ENTRY POINT — the only service that receives traffic.
+  # Serves the built web app and forwards /api and file requests to the backend and SeaweedFS.
+  # In Coolify, the domain goes on this service (port 80).
   frontend:
     build:
       context: ./frontend
       target: production
       args:
         VITE_MAP_TILE_URL: ${VITE_MAP_TILE_URL:-}
-    restart: unless-stopped
-
-  # Public entry point. In Coolify, assign your domain to this service (port 80).
-  nginx:
-    build: ./infra/nginx
     environment:
-      FRONTEND_UPSTREAM: frontend:80
       S3_BUCKET_PUBLIC: ${S3_BUCKET_PUBLIC:-smartkids-public}
       S3_BUCKET_PRIVATE: ${S3_BUCKET_PRIVATE:-smartkids-private}
     expose:
       - "80"
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/ || exit 1"]
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/api/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 10
+      start_period: 10s
     depends_on:
       backend:
         condition: service_healthy
-      frontend:
-        condition: service_started
+      seaweedfs:
+        condition: service_healthy
     restart: unless-stopped
 
 volumes:

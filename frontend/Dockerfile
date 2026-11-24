@@ -22,5 +22,10 @@ RUN npm run build
 # ---------------------------------------------------------- production -------
 FROM nginx:1.27-alpine AS production
 COPY --from=build /app/dist /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Rendered to /etc/nginx/conf.d/default.conf by the image's envsubst step at start-up.
+COPY nginx/default.conf.template /etc/nginx/templates/default.conf.template
+ENV BACKEND_UPSTREAM=backend:8000 \
+    STORAGE_UPSTREAM=seaweedfs:8333 \
+    S3_BUCKET_PUBLIC=smartkids-public \
+    S3_BUCKET_PRIVATE=smartkids-private
 EXPOSE 80

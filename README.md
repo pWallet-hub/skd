@@ -63,7 +63,7 @@ Staff users can also export de-identified aggregates as CSV from the Overview pa
 | Queue / cache     | Redis 7                                                | `redis`      |
 | Images & files    | **SeaweedFS** (S3-compatible API)                      | `seaweedfs`  |
 | Web app           | React 18 + TypeScript + Vite, TanStack Query, Leaflet  | `frontend`   |
-| Entry point       | Nginx (routes `/api`, files, and the web app)          | `nginx`      |
+| Entry point       | Nginx — in production inside `frontend` (serves the app, routes `/api` and files); in dev a separate `nginx` proxy | `frontend` / `nginx` (dev) |
 | Dev email         | Mailpit                                                | `mailpit`    |
 
 ## Repository layout
@@ -89,7 +89,7 @@ Staff users can also export de-identified aggregates as CSV from the Overview pa
 │   ├── src/pages/           one file per screen
 │   └── Dockerfile           development + production targets
 ├── infra/
-│   ├── nginx/               edge proxy image (config template baked in)
+│   ├── nginx/               dev-only edge proxy (prod routing lives in frontend/nginx/)
 │   ├── postgres/            PostGIS image + first-boot scripts
 │   └── seaweedfs/           SeaweedFS image; S3 identities generated from env
 ├── docs/                    product vision, architecture, developer guide
