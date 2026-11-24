@@ -12,6 +12,11 @@ import PlacesPage from "./pages/admin/PlacesPage";
 import SettingsPage from "./pages/admin/SettingsPage";
 import UsersPage from "./pages/admin/UsersPage";
 import AlertsPage from "./pages/AlertsPage";
+import ChildPage from "./pages/ChildPage";
+import FindCarePage from "./pages/FindCarePage";
+import HealthCardPage from "./pages/HealthCardPage";
+import RegisterPage from "./pages/RegisterPage";
+import ReviewQueuePage from "./pages/ReviewQueuePage";
 import FamilyPage from "./pages/FamilyPage";
 import InsightsPage from "./pages/InsightsPage";
 import LearnPage from "./pages/LearnPage";
@@ -50,10 +55,14 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
+      <Route path="/card/:token" element={<HealthCardPage />} />
       <Route element={<RequireAuth><Layout /></RequireAuth>}>
         <Route index element={<Home />} />
         <Route path="family" element={only(["parent"], <FamilyPage />)} />
         <Route path="report" element={only(["parent"], <ReportSymptomsPage />)} />
+        <Route path="children/:id" element={only(["parent"], <ChildPage />)} />
+        <Route path="care" element={only(["parent"], <FindCarePage />)} />
         <Route path="learn" element={<LearnPage />} />
         <Route path="notifications" element={<NotificationsPage />} />
 
@@ -62,6 +71,7 @@ export default function App() {
         <Route path="signals" element={only(STAFF, <SignalsPage />)} />
         <Route path="signals/:id" element={only(STAFF, <SignalDetailPage />)} />
         <Route path="alerts" element={only(HEALTH_TEAM, <AlertsPage />)} />
+        <Route path="review" element={only(["health_reviewer", "admin"], <ReviewQueuePage />)} />
 
         <Route path="admin" element={only(["admin"], <AdminDashboardPage />)} />
         <Route path="admin/users" element={only(["admin"], <UsersPage />)} />

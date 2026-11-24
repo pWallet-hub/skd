@@ -21,6 +21,7 @@ from app.models import (
     InfrastructureAsset,
     School,
     SymptomReport,
+    SystemSetting,
     User,
 )
 from app.models.enums import ContentStatus, UserRole
@@ -32,6 +33,8 @@ from app.schemas.admin import (
     AuditLogRead,
     BucketUsage,
     DailyCount,
+    DemoStatus,
+    DemoToggle,
     Page,
     PasswordReset,
     RoleCount,
@@ -40,11 +43,14 @@ from app.schemas.admin import (
     UserCreated,
 )
 from app.services import audit
+from app.services.demo import LAST_RUN_KEY, simulate_activity
 from app.services.system_settings import (
     DetectionSettings,
     defaults,
     get_detection_settings,
+    is_demo_mode,
     save_detection_settings,
+    set_demo_mode,
 )
 
 router = APIRouter(prefix="/admin", tags=["administration"])
@@ -335,3 +341,41 @@ def update_detection_settings(
         )  # fmt: skip
     db.commit()
     return get_detection_settings(db)
+
+
+# ------------------------------------------------------------------- demo ----
+@router.get("/demo", response_model=DemoStatus)
+def demo_status(db: DbSession, _: AdminUser) -> DemoStatus:
+    last = db.get(SystemSetting, LAST_RUN_KEY)
+    return DemoStatus(
+        enabled=is_demo_mode(db),
+        interval_seconds=settings.demo_activity_interval_seconds,
+        last_run_at=last.value.get("at") if last else None,
+        last_run_stats=last.value.get("stats") if last else None,
+    )
+
+
+@router.put("/demo", response_model=DemoStatus)
+def update_demo_mode(
+    payload: DemoToggle, admin: AdminUser, db: DbSession, request: Request
+) -> DemoStatus:
+    set_demo_mode(db, payload.enabled, admin)
+    audit.record(
+        db, admin, "settings.demo_mode", "settings", "demo",
+        f"Demo activity simulation {'enabled' if payload.enabled else 'disabled'}", request=request,
+    )  # fmt: skip
+    db.commit()
+    return demo_status(db, admin)
+
+
+@router.post("/demo/simulate", response_model=dict[str, int])
+def simulate_now(admin: AdminUser, db: DbSession, request: Request) -> dict[str, int]:
+    """Generate one round of demo activity immediately (works even if demo mode is off)."""
+    stats = simulate_activity(db)
+    audit.record(
+        db, admin, "demo.simulate", "settings", "demo",
+        "Generated demo activity: " + ", ".join(f"{v} {k}" for k, v in stats.items() if v),
+        stats, request,
+    )  # fmt: skip
+    db.commit()
+    return stats

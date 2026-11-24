@@ -11,15 +11,16 @@ import { useToast } from "../components/Toast";
 import { Badge, Button, Card, EmptyState, Loading, PageHeader, StatCard } from "../components/ui";
 
 const RANGES = [7, 14, 30, 90];
+const LIVE = 30_000; // refresh every 30 s so new activity shows up during demos
 
 export default function InsightsPage() {
   const toast = useToast();
   const [days, setDays] = useState(30);
-  const overview = useQuery({ queryKey: ["overview"], queryFn: () => get<Overview>("/analytics/overview") });
-  const trends = useQuery({ queryKey: ["trends", days], queryFn: () => get<TrendPoint[]>(`/analytics/trends?days=${days}`) });
-  const categories = useQuery({ queryKey: ["categories", days], queryFn: () => get<CategoryCount[]>(`/analytics/categories?days=${days}`) });
-  const areas = useQuery({ queryKey: ["areas-agg", days], queryFn: () => get<AreaAggregate[]>(`/analytics/areas?days=${days}`) });
-  const signals = useQuery({ queryKey: ["signals"], queryFn: () => get<Signal[]>("/signals") });
+  const overview = useQuery({ queryKey: ["overview"], queryFn: () => get<Overview>("/analytics/overview"), refetchInterval: LIVE });
+  const trends = useQuery({ queryKey: ["trends", days], queryFn: () => get<TrendPoint[]>(`/analytics/trends?days=${days}`), refetchInterval: LIVE });
+  const categories = useQuery({ queryKey: ["categories", days], queryFn: () => get<CategoryCount[]>(`/analytics/categories?days=${days}`), refetchInterval: LIVE });
+  const areas = useQuery({ queryKey: ["areas-agg", days], queryFn: () => get<AreaAggregate[]>(`/analytics/areas?days=${days}`), refetchInterval: LIVE });
+  const signals = useQuery({ queryKey: ["signals"], queryFn: () => get<Signal[]>("/signals"), refetchInterval: LIVE });
   const open = signals.data?.filter((s) => ["detected", "under_review", "confirmed"].includes(s.status)) ?? [];
   const o = overview.data;
 

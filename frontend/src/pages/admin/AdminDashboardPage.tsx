@@ -8,9 +8,9 @@ import { Button, Card, Loading, PageHeader, StatCard } from "../../components/ui
 import { formatBytes, ROLE_LABEL, timeAgo } from "../../utils/format";
 
 export default function AdminDashboardPage() {
-  const stats = useQuery({ queryKey: ["admin-stats"], queryFn: () => get<AdminStats>("/admin/stats") });
+  const stats = useQuery({ queryKey: ["admin-stats"], queryFn: () => get<AdminStats>("/admin/stats"), refetchInterval: 30_000 });
   const system = useQuery({ queryKey: ["admin-system"], queryFn: () => get<SystemStatus>("/admin/system"), refetchInterval: 30_000 });
-  const audit = useQuery({ queryKey: ["admin-audit", "recent"], queryFn: () => get<Page<AuditEntry>>("/admin/audit-logs?limit=6") });
+  const audit = useQuery({ queryKey: ["admin-audit", "recent"], queryFn: () => get<Page<AuditEntry>>("/admin/audit-logs?limit=6"), refetchInterval: 30_000 });
   const s = stats.data;
   const allOk = system.data?.services.every((x) => x.ok);
 

@@ -54,3 +54,22 @@ def save_detection_settings(db: Session, new: DetectionSettings, actor: User) ->
             row.value = new_value
             row.updated_by_id = actor.id
     return changes
+
+
+# ---- demo mode ---------------------------------------------------------------
+DEMO_MODE_KEY = "demo_mode_enabled"
+
+
+def is_demo_mode(db: Session) -> bool:
+    row = db.get(SystemSetting, DEMO_MODE_KEY)
+    return bool(row.value) if row is not None else settings.demo_mode
+
+
+def set_demo_mode(db: Session, enabled: bool, actor: User) -> None:
+    """Caller commits."""
+    row = db.get(SystemSetting, DEMO_MODE_KEY)
+    if row is None:
+        db.add(SystemSetting(key=DEMO_MODE_KEY, value=enabled, updated_by_id=actor.id))
+    else:
+        row.value = enabled
+        row.updated_by_id = actor.id

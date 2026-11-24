@@ -16,6 +16,11 @@ celery_app.conf.update(
             "task": "app.workers.tasks.detect_signals_task",
             "schedule": crontab(minute=5),
         },
+        # Runs always, but only acts when demo mode is on (admin Settings / DEMO_MODE).
+        "simulate-demo-activity": {
+            "task": "app.workers.tasks.simulate_demo_activity_task",
+            "schedule": float(settings.demo_activity_interval_seconds),
+        },
     },
 )
 celery_app.autodiscover_tasks(["app.workers"])

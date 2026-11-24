@@ -1,10 +1,13 @@
-import { useQuery } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { get } from "../api/client";
-import type { Child, NotificationItem, SymptomReport } from "../api/types";
+import type { CareSummary, Child, NotificationItem, SymptomReport } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
-import { ArrowRight, Baby, Bell, BellRing, BookOpen, HeartPulse, Megaphone, Stethoscope } from "../components/icons";
-import { Avatar, Badge, Card, EmptyState, ErrorText, Loading, PageHeader, StatCard } from "../components/ui";
+import { ChildForm } from "../components/ChildForm";
+import { ArrowRight, Baby, Bell, BellRing, BookOpen, ChevronRight, HeartPulse, Hospital, Megaphone, Plus, ShieldCheck, Stethoscope } from "../components/icons";
+import { useToast } from "../components/Toast";
+import { Avatar, Badge, Button, Card, EmptyState, ErrorText, Loading, PageHeader, StatCard } from "../components/ui";
 import { ageLabel, formatDate, timeAgo } from "../utils/format";
 
 const notifIcon = (kind: string) =>
@@ -16,8 +19,36 @@ const notifIcon = (kind: string) =>
     <div className="list-icon info"><BellRing size={18} /></div>
   );
 
+function ChildCard({ child }: { child: Child }) {
+  const navigate = useNavigate();
+  const care = useQuery({ queryKey: ["care", child.id], queryFn: () => get<CareSummary>(`/children/${child.id}/care-summary`) });
+  return (
+    <button className="child-card clickable" onClick={() => navigate(`/children/${child.id}`)}
+      style={{ background: "var(--surface)", font: "inherit", textAlign: "left", width: "100%" }}>
+      <Avatar name={child.display_name} src={child.photo_url} size="lg" />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="strong">{child.display_name}</div>
+        <div className="muted small">{ageLabel(child.age_months)} · born {formatDate(child.date_of_birth)}</div>
+        <div className="tags">
+          {!!care.data?.vaccines_due && (
+            <Badge value={care.data.vaccines_overdue ? "confirmed" : "pending_approval"} icon={<ShieldCheck size={12} />}
+              label={`${care.data.vaccines_due} vaccine${care.data.vaccines_due > 1 ? "s" : ""} ${care.data.vaccines_overdue ? "overdue" : "due"}`} />
+          )}
+          {!!care.data?.milestones_to_check && <Badge value="pending_approval" label="Milestone check-in" />}
+          {child.learning_interests.slice(0, 2).map((i) => <span key={i} className="badge badge-brand">{i}</span>)}
+        </div>
+      </div>
+      <ChevronRight size={18} color="var(--text-3)" />
+    </button>
+  );
+}
+
 export default function FamilyPage() {
   const { user } = useAuth();
+  const toast = useToast();
+  const qc = useQueryClient();
+  const navigate = useNavigate();
+  const [adding, setAdding] = useState(false);
   const children = useQuery({ queryKey: ["children"], queryFn: () => get<Child[]>("/children") });
   const reports = useQuery({ queryKey: ["reports"], queryFn: () => get<SymptomReport[]>("/reports?limit=8") });
   const notifications = useQuery({ queryKey: ["notifications"], queryFn: () => get<NotificationItem[]>("/notifications") });
@@ -33,9 +64,10 @@ export default function FamilyPage() {
         title={`Hello, ${firstName} 👋`}
         subtitle="Here's how your family is doing."
         actions={
-          <Link to="/report" className="btn btn-primary">
-            <Stethoscope size={16} /> Report a concern
-          </Link>
+          <>
+            <Link to="/care" className="btn btn-secondary"><Hospital size={16} /> Find care</Link>
+            <Link to="/report" className="btn btn-primary"><Stethoscope size={16} /> Report a concern</Link>
+          </>
         }
       />
 
@@ -47,24 +79,16 @@ export default function FamilyPage() {
 
       <div className="grid grid-main">
         <div className="stack">
-          <Card title="My children" subtitle="Profiles you manage">
+          <Card title="My children" subtitle="Tap a child to see growth, vaccinations and milestones"
+            actions={<Button size="sm" variant="secondary" icon={<Plus size={14} />} onClick={() => setAdding(true)}>Add child</Button>}>
             {children.isLoading && <Loading />}
             <ErrorText error={children.error} />
+            {children.data?.length === 0 && (
+              <EmptyState title="Add your first child" message="Create a profile to track growth, vaccinations and health." icon={<Baby size={22} />}
+                action={<Button icon={<Plus size={16} />} onClick={() => setAdding(true)}>Add a child</Button>} />
+            )}
             <div className="grid grid-2" style={{ gap: 12 }}>
-              {children.data?.map((c) => (
-                <div key={c.id} className="child-card">
-                  <Avatar name={c.display_name} src={c.photo_url} size="lg" />
-                  <div>
-                    <div className="strong">{c.display_name}</div>
-                    <div className="muted small">{ageLabel(c.age_months)} · born {formatDate(c.date_of_birth)}</div>
-                    <div className="tags">
-                      {c.learning_interests.map((i) => (
-                        <span key={i} className="badge badge-brand">{i}</span>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              ))}
+              {children.data?.map((c) => <ChildCard key={c.id} child={c} />)}
             </div>
           </Card>
 
@@ -111,6 +135,17 @@ export default function FamilyPage() {
           </ul>
         </Card>
       </div>
+      {adding && (
+        <ChildForm
+          onClose={() => setAdding(false)}
+          onSaved={(c) => {
+            setAdding(false);
+            qc.invalidateQueries({ queryKey: ["children"] });
+            toast(`${c.display_name} added to your family`);
+            navigate(`/children/${c.id}`);
+          }}
+        />
+      )}
     </>
   );
 }

@@ -11,6 +11,7 @@ import {
   ClipboardList,
   FileText,
   HeartPulse,
+  Hospital,
   LayoutDashboard,
   LogOut,
   MapIcon,
@@ -44,6 +45,7 @@ const SECTIONS: { label: string; items: NavItem[] }[] = [
     items: [
       { to: "/family", label: "Dashboard", icon: <LayoutDashboard size={18} />, roles: ["parent"] },
       { to: "/report", label: "Report a concern", icon: <Stethoscope size={18} />, roles: ["parent"] },
+      { to: "/care", label: "Find care", icon: <Hospital size={18} />, roles: ["parent"] },
       { to: "/learn", label: "Guidance", icon: <BookOpen size={18} />, roles: ["parent"] },
     ],
   },
@@ -53,6 +55,7 @@ const SECTIONS: { label: string; items: NavItem[] }[] = [
       { to: "/insights", label: "Overview", icon: <TrendingUp size={18} />, roles: STAFF },
       { to: "/map", label: "Map", icon: <MapIcon size={18} />, roles: STAFF },
       { to: "/signals", label: "Signals", icon: <Radar size={18} />, roles: STAFF, badge: "signals" },
+      { to: "/review", label: "Report review", icon: <ClipboardList size={18} />, roles: ["health_reviewer", "admin"] },
       { to: "/alerts", label: "Alerts", icon: <Megaphone size={18} />, roles: HEALTH_TEAM },
     ],
   },
@@ -87,6 +90,7 @@ export function Layout() {
     queryKey: ["signals"],
     queryFn: () => get<Signal[]>("/signals"),
     enabled: isStaff,
+    refetchInterval: 60_000,
   });
   const unread = notifications.data?.filter((n) => !n.read_at).length ?? 0;
   const newSignals = signals.data?.filter((s) => s.status === "detected").length ?? 0;

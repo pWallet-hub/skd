@@ -3,6 +3,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { get, post, put } from "../../api/client";
 import type { DetectionSettings } from "../../api/types";
 import { Gauge, Radar, RefreshCw, Shield } from "../../components/icons";
+import { DemoModeCard } from "../../components/DemoModeCard";
 import { useToast } from "../../components/Toast";
 import { Button, Card, ErrorText, Loading, PageHeader } from "../../components/ui";
 
@@ -42,6 +43,7 @@ export default function SettingsPage() {
   return (
     <>
       <PageHeader title="Settings" subtitle="Tune how community signals are detected and how data is protected. Changes are audited." />
+      <div style={{ marginBottom: 18 }}><DemoModeCard /></div>
       <form onSubmit={submit} className="stack">
         <Card
           title={<span className="row" style={{ gap: 8 }}><Radar size={18} /> Signal detection</span>}

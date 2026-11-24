@@ -17,6 +17,8 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 60
     refresh_token_expire_days: int = 7
     bcrypt_rounds: int = 12
+    # Google sign-in (PLACEHOLDER — not implemented yet; see docs/deployment.md)
+    google_client_id: str = ""
     cors_origins: str = "http://localhost:8000"
 
     # Database
@@ -50,6 +52,10 @@ class Settings(BaseSettings):
     signal_min_reports: int = 4
     signal_ratio_threshold: float = 2.0
     aggregate_min_cell_size: int = 3
+
+    # Demo mode: simulate live activity from the fictional demo community
+    demo_mode: bool = False
+    demo_activity_interval_seconds: int = 180
 
     @property
     def database_url(self) -> str:

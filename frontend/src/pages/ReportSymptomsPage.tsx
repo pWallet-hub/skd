@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState, type FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { get, post } from "../api/client";
 import type { Child, Symptom, SymptomReport } from "../api/types";
 import { AlertTriangle, Check, ShieldCheck } from "../components/icons";
@@ -17,8 +17,14 @@ export default function ReportSymptomsPage() {
   const children = useQuery({ queryKey: ["children"], queryFn: () => get<Child[]>("/children") });
   const symptoms = useQuery({ queryKey: ["symptoms"], queryFn: () => get<Symptom[]>("/symptoms") });
 
-  const [childId, setChildId] = useState<number | null>(null);
+  const [params] = useSearchParams();
+  const [childId, setChildId] = useState<number | null>(params.get("child") ? Number(params.get("child")) : null);
   const [selected, setSelected] = useState<number[]>([]);
+
+  // A parent with a single child shouldn't have to pick them.
+  useEffect(() => {
+    if (childId === null && children.data?.length === 1) setChildId(children.data[0].id);
+  }, [children.data, childId]);
   const [onset, setOnset] = useState(today());
   const [visited, setVisited] = useState(false);
   const [consent, setConsent] = useState(true);
@@ -42,8 +48,9 @@ export default function ReportSymptomsPage() {
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["reports"] });
-      toast("Report saved. Thank you for keeping your child's history up to date.");
-      navigate("/family");
+      qc.invalidateQueries({ queryKey: ["notifications"] });
+      toast("Report saved — check your notifications for guidance.");
+      navigate(childId ? `/children/${childId}` : "/family");
     },
   });
 

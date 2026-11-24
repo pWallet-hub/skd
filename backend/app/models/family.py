@@ -10,6 +10,7 @@ from app.models.enums import Sex, db_enum
 from app.models.geo import AdministrativeArea, School
 
 if TYPE_CHECKING:
+    from app.models.child_health import ImmunizationRecord, MilestoneRecord
     from app.models.user import User
 
 
@@ -36,6 +37,12 @@ class Child(TimestampMixin, Base):
         back_populates="child",
         cascade="all, delete-orphan",
         order_by="GrowthMeasurement.measured_on",
+    )
+    immunizations: Mapped[list["ImmunizationRecord"]] = relationship(
+        back_populates="child", cascade="all, delete-orphan"
+    )
+    milestones: Mapped[list["MilestoneRecord"]] = relationship(
+        back_populates="child", cascade="all, delete-orphan"
     )
 
 

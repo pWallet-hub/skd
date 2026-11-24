@@ -5,9 +5,11 @@ from sqlalchemy.orm import selectinload
 from app.api.deps import CurrentUser, DbSession, ParentUser, ReviewerUser, get_or_404
 from app.api.routes.children import get_owned_child
 from app.models import Symptom, SymptomReport
-from app.models.enums import UserRole
+from app.models.enums import ReportVerification, UserRole
 from app.schemas.health import ReportCreate, ReportRead, ReportUpdate, ReportVerify, SymptomRead
 from app.services import audit
+from app.services.reports import create_report as create_report_with_notifications
+from app.services.reports import notify_verification
 
 router = APIRouter(tags=["health reports"])
 
@@ -22,6 +24,8 @@ def list_reports(
     user: CurrentUser,
     db: DbSession,
     child_id: int | None = None,
+    verification: ReportVerification | None = None,
+    ongoing: bool | None = None,
     limit: int = Query(50, le=200),
     offset: int = 0,
 ) -> list[SymptomReport]:
@@ -33,7 +37,14 @@ def list_reports(
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Individual reports are not available")
     if child_id is not None:
         stmt = stmt.where(SymptomReport.child_id == child_id)
-    stmt = stmt.order_by(SymptomReport.onset_date.desc(), SymptomReport.id.desc())
+    if verification is not None:
+        stmt = stmt.where(SymptomReport.verification == verification)
+    if ongoing is not None:
+        stmt = stmt.where(SymptomReport.is_ongoing.is_(ongoing))
+    if user.role == UserRole.PARENT:  # parents: by when symptoms started
+        stmt = stmt.order_by(SymptomReport.onset_date.desc(), SymptomReport.id.desc())
+    else:  # reviewers: newest submissions first
+        stmt = stmt.order_by(SymptomReport.created_at.desc(), SymptomReport.id.desc())
     return list(db.scalars(stmt.limit(limit).offset(offset)))
 
 
@@ -45,10 +56,9 @@ def create_report(payload: ReportCreate, user: ParentUser, db: DbSession) -> Sym
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Unknown symptom id")
 
     data = payload.model_dump(exclude={"symptom_ids", "child_id"})
-    data["school_id"] = payload.school_id or child.school_id
-    data["area_id"] = payload.area_id or child.area_id
-    report = SymptomReport(child_id=child.id, reported_by_id=user.id, symptoms=symptoms, **data)
-    db.add(report)
+    report = create_report_with_notifications(
+        db, child=child, reporter=user, symptoms=symptoms, **data
+    )
     db.commit()
     db.refresh(report)
     return report
@@ -88,7 +98,10 @@ def verify_report(
 ) -> SymptomReport:
     """Health reviewers mark a report as clinically confirmed (or back to observation)."""
     report = get_or_404(db, SymptomReport, report_id)
+    changed = report.verification != payload.verification
     report.verification = payload.verification
+    if changed:
+        notify_verification(db, report)
     audit.record(
         db, user, "report.verification", "report", report.id,
         f"Report #{report.id} marked {payload.verification}", request=request,

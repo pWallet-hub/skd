@@ -109,3 +109,14 @@ class AuditLogRead(ORMModel):
     details: dict[str, Any]
     ip_address: str | None
     created_at: datetime
+
+
+class DemoStatus(BaseModel):
+    enabled: bool
+    interval_seconds: int
+    last_run_at: str | None
+    last_run_stats: dict[str, int] | None
+
+
+class DemoToggle(BaseModel):
+    enabled: bool

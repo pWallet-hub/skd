@@ -3,7 +3,9 @@ import logging
 from app.core.database import SessionLocal
 from app.models import CommunityAlert
 from app.services.alerts import publish_alert
+from app.services.demo import simulate_activity
 from app.services.surveillance import detect_signals
+from app.services.system_settings import is_demo_mode
 from app.workers.celery_app import celery_app
 
 logger = logging.getLogger(__name__)
@@ -27,3 +29,14 @@ def publish_alert_task(alert_id: int) -> int:
         sent = publish_alert(db, alert)
     logger.info("Alert %s published to %s recipients", alert_id, sent)
     return sent
+
+
+@celery_app.task
+def simulate_demo_activity_task() -> dict[str, int] | None:
+    """Generate realistic activity from the fictional demo community (demo mode only)."""
+    with SessionLocal() as db:
+        if not is_demo_mode(db):
+            return None
+        stats = simulate_activity(db)
+    logger.info("Demo activity simulated: %s", stats)
+    return stats

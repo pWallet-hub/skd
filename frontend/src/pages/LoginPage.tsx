@@ -1,7 +1,8 @@
 import { useState, type FormEvent } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { homeFor } from "../auth/home";
+import { GoogleButton } from "../components/GoogleButton";
 import { HeartPulse, MapPin, Radar, Shield, ShieldCheck, Smile, Stethoscope, Users } from "../components/icons";
 import { Button, ErrorText, Field } from "../components/ui";
 
@@ -82,6 +83,8 @@ export default function LoginPage() {
           </Field>
           <ErrorText error={error} />
           <Button disabled={busy} style={{ height: 44 }}>{busy ? "Signing in…" : "Sign in"}</Button>
+          <GoogleButton />
+          <p className="small muted" style={{ textAlign: "center" }}>New parent or guardian? <Link to="/register">Create a family account</Link></p>
 
           <div>
             <div className="divider">or try a demo account</div>

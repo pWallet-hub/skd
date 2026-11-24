@@ -66,3 +66,18 @@ class SymptomReport(TimestampMixin, Base):
     facility: Mapped[HealthFacility | None] = relationship()
     school: Mapped[School | None] = relationship()
     area: Mapped[AdministrativeArea | None] = relationship()
+
+    # Convenience fields for the health-reviewer queue (read-only; not columns).
+    @property
+    def area_name(self) -> str | None:
+        return self.area.name if self.area else None
+
+    @property
+    def school_name(self) -> str | None:
+        return self.school.name if self.school else None
+
+    @property
+    def child_age_months(self) -> int | None:
+        from app.services.children import age_in_months
+
+        return age_in_months(self.child.date_of_birth) if self.child else None

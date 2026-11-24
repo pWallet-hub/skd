@@ -46,6 +46,11 @@ x-backend-env: &backend-env
   WEB_CONCURRENCY: ${WEB_CONCURRENCY:-2}
   # true = load the fictional demo data on first start (only if the database has no users)
   SEED_DEMO_DATA: ${SEED_DEMO_DATA:-false}
+  # true = demo families keep generating realistic activity (admins can also toggle this in Settings)
+  DEMO_MODE: ${DEMO_MODE:-false}
+  DEMO_ACTIVITY_INTERVAL_SECONDS: ${DEMO_ACTIVITY_INTERVAL_SECONDS:-180}
+  # Google sign-in placeholder (not implemented yet)
+  GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
 
 x-backend: &backend
   build:

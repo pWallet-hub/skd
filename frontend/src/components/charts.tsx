@@ -97,3 +97,63 @@ export function HBarList({ items }: { items: { label: string; value: number }[] 
     </div>
   );
 }
+
+/** Single-series line chart with point hover (e.g. a child's height over time). */
+export function LineSeries({
+  data,
+  unit,
+  height = 200,
+}: {
+  data: { date: string; value: number }[];
+  unit: string;
+  height?: number;
+}) {
+  const [hover, setHover] = useState<number | null>(null);
+  if (data.length === 0) return <p className="muted small">No measurements yet.</p>;
+  const width = 560;
+  const pad = { top: 14, right: 16, bottom: 26, left: 40 };
+  const innerW = width - pad.left - pad.right;
+  const innerH = height - pad.top - pad.bottom;
+  const times = data.map((d) => new Date(`${d.date}T00:00:00`).getTime());
+  const t0 = Math.min(...times);
+  const t1 = Math.max(...times, t0 + 1);
+  const vals = data.map((d) => d.value);
+  const lo = Math.floor(Math.min(...vals) * 0.95);
+  const hi = Math.ceil(Math.max(...vals) * 1.05) || 1;
+  const x = (t: number) => pad.left + ((t - t0) / (t1 - t0)) * innerW;
+  const y = (v: number) => pad.top + innerH - ((v - lo) / Math.max(1, hi - lo)) * innerH;
+  const ticks = [lo, lo + (hi - lo) / 2, hi];
+  const path = data.map((d, i) => `${i ? "L" : "M"}${x(times[i])},${y(d.value)}`).join(" ");
+
+  return (
+    <div className="chart" onMouseLeave={() => setHover(null)}>
+      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`Values in ${unit}`}>
+        <g className="axis">
+          {ticks.map((t) => (
+            <g key={t}>
+              <line className="grid-line" x1={pad.left} x2={width - pad.right} y1={y(t)} y2={y(t)} />
+              <text x={pad.left - 8} y={y(t) + 4} textAnchor="end">{Math.round(t * 10) / 10}</text>
+            </g>
+          ))}
+          {[0, Math.floor((data.length - 1) / 2), data.length - 1]
+            .filter((v, i, a) => a.indexOf(v) === i)
+            .map((i) => (
+              <text key={i} x={x(times[i])} y={height - 6} textAnchor="middle">{fmtDay(data[i].date)}</text>
+            ))}
+        </g>
+        <path d={path} fill="none" stroke="var(--series-1)" strokeWidth={2} strokeLinejoin="round" />
+        {data.map((d, i) => (
+          <g key={d.date + i} onMouseEnter={() => setHover(i)}>
+            <circle cx={x(times[i])} cy={y(d.value)} r={14} fill="transparent" />
+            <circle cx={x(times[i])} cy={y(d.value)} r={hover === i ? 6 : 4} fill="var(--series-1)" stroke="var(--surface)" strokeWidth={2} />
+          </g>
+        ))}
+      </svg>
+      {hover !== null && (
+        <div className="chart-tip" style={{ left: `${(x(times[hover]) / width) * 100}%`, top: `${(y(data[hover].value) / height) * 100}%` }}>
+          <strong>{data[hover].value} {unit}</strong> · {fmtDay(data[hover].date)}
+        </div>
+      )}
+    </div>
+  );
+}

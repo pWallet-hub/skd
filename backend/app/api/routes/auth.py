@@ -100,3 +100,30 @@ def update_me(payload: UserUpdate, user: CurrentUser, db: DbSession) -> User:
     db.commit()
     db.refresh(user)
     return user
+
+
+# ---- external sign-in providers ------------------------------------------------
+@router.get("/providers")
+def auth_providers() -> dict[str, dict[str, bool | str]]:
+    """Which sign-in options the login page should offer."""
+    return {
+        "password": {"enabled": True, "status": "available"},
+        "google": {"enabled": False, "status": "placeholder"},
+    }
+
+
+@router.post("/google", status_code=status.HTTP_501_NOT_IMPLEMENTED)
+def google_sign_in() -> dict[str, str]:
+    """PLACEHOLDER for "Continue with Google".
+
+    Planned flow (Google Identity Services):
+      1. Frontend obtains a Google ID token (credential) with GOOGLE_CLIENT_ID.
+      2. POST it here; verify it with google-auth (`id_token.verify_oauth2_token`),
+         checking `aud == GOOGLE_CLIENT_ID` and `email_verified`.
+      3. Find the user by email or create a PARENT account, then return our TokenPair.
+    Staff accounts should keep being created by admins only.
+    """
+    raise HTTPException(
+        status.HTTP_501_NOT_IMPLEMENTED,
+        "Google sign-in is coming soon. Please use email and password.",
+    )

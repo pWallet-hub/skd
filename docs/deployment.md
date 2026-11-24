@@ -30,7 +30,7 @@ Why `compose.yaml` works on hosted platforms:
    | `POSTGRES_PASSWORD` | `openssl rand -hex 24`                            |
    | `S3_SECRET_KEY`     | `openssl rand -hex 24`                            |
 
-   For a demo, also set `SEED_DEMO_DATA=true` to load the fictional demo data on first start
+   For a demo, also set `DEMO_MODE=true` (demo families keep generating activity) and `SEED_DEMO_DATA=true` to load the fictional demo data on first start
    (it only runs when the database has no users, so it never overwrites data).
 
    Optional: `S3_ACCESS_KEY`, `S3_BUCKET_PUBLIC`, `S3_BUCKET_PRIVATE`, `WEB_CONCURRENCY`,
@@ -71,3 +71,16 @@ Put a TLS-terminating proxy (Caddy, Traefik, nginx) in front of the `frontend` s
 Persisted volumes: `postgres_data` (database), `seaweedfs_data` (all uploaded files), `redis_data`
 (queue only, safe to lose). Back up the first two, e.g. with Coolify's scheduled database backups
 for PostgreSQL and a volume backup for SeaweedFS.
+
+## Google sign-in (placeholder)
+
+The login and registration pages show **Continue with Google**, and `POST /api/v1/auth/google`
+returns `501 Not Implemented`. To implement it later:
+
+1. Create an OAuth client in Google Cloud Console (Web application); add the site URL as an
+   authorised JavaScript origin. Set `GOOGLE_CLIENT_ID`.
+2. Frontend: load Google Identity Services and send the returned ID token (credential) to
+   `/api/v1/auth/google`.
+3. Backend: verify it with `google-auth` (`id_token.verify_oauth2_token`), check the audience and
+   `email_verified`, then sign in the matching user or create a **parent** account and return the
+   usual token pair. Staff accounts stay admin-created.

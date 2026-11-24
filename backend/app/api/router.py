@@ -10,6 +10,7 @@ from app.api.routes import (
     geo,
     notifications,
     reports,
+    share,
     signals,
 )
 
@@ -24,3 +25,4 @@ api_router.include_router(alerts.router)
 api_router.include_router(notifications.router)
 api_router.include_router(content.router)
 api_router.include_router(admin.router)
+api_router.include_router(share.router)

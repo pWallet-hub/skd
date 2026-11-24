@@ -262,3 +262,57 @@ export interface ArticleFull extends Article {
   max_age_months: number | null;
   published_at: string | null;
 }
+
+// ---------------------------------------------------------- child health ----
+export interface Measurement {
+  id: number;
+  child_id: number;
+  measured_on: string;
+  height_cm: string | null;
+  weight_kg: string | null;
+  head_circumference_cm: string | null;
+  notes: string | null;
+}
+
+export interface ImmunizationItem {
+  code: string;
+  name: string;
+  protects_against: string;
+  due_date: string;
+  status: "given" | "due" | "overdue" | "upcoming";
+  given_on: string | null;
+  record_id: number | null;
+}
+
+export interface MilestoneItem {
+  code: string;
+  title: string;
+  domain: "social" | "language" | "movement" | "thinking";
+  expected_months: number;
+  status: "achieved" | "expected" | "check" | "upcoming";
+  achieved_on: string | null;
+  record_id: number | null;
+}
+
+export interface CareSummary {
+  vaccines_due: number;
+  vaccines_overdue: number;
+  milestones_to_check: number;
+}
+
+export interface FacilityNearby extends Facility {
+  distance_m: number;
+}
+
+export interface ReviewReport extends SymptomReport {
+  area_name: string | null;
+  school_name: string | null;
+  child_age_months: number | null;
+}
+
+export interface DemoStatus {
+  enabled: boolean;
+  interval_seconds: number;
+  last_run_at: string | null;
+  last_run_stats: Record<string, number> | null;
+}

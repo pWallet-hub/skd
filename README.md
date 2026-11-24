@@ -5,7 +5,7 @@ content and community services, and turns voluntary, aggregated reports into
 **community-level health signals** that trained people review before anyone is alerted.
 
 > Product vision and scope: [docs/product-vision.md](docs/product-vision.md)
-> Architecture: [docs/architecture.md](docs/architecture.md) · Developer guide: [docs/development.md](docs/development.md) · Deployment (Coolify): [docs/deployment.md](docs/deployment.md)
+> Architecture: [docs/architecture.md](docs/architecture.md) · Developer guide: [docs/development.md](docs/development.md) · Deployment (Coolify): [docs/deployment.md](docs/deployment.md) · **Presenting a demo: [docs/demo-guide.md](docs/demo-guide.md)**
 
 ---
 

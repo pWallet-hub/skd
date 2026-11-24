@@ -63,3 +63,7 @@ class ReportRead(ORMModel):
     consent_to_aggregate: bool
     notes: str | None
     created_at: datetime
+    # Context for health reviewers (no child name)
+    area_name: str | None = None
+    school_name: str | None = None
+    child_age_months: int | None = None
