@@ -58,6 +58,7 @@ Put a TLS-terminating proxy (Caddy, Traefik, nginx) in front of the `nginx` serv
 |---|---|
 | `dependency failed to start: container seaweedfs… is unhealthy` | `S3_SECRET_KEY` missing, or an old commit that bind-mounted `s3.json`. Check the seaweedfs logs. |
 | `Bind for 0.0.0.0:8000 failed: port is already allocated` | The dev override was deployed. Make sure the compose file is `compose.yaml` and you are on the latest commit; production publishes no host ports. |
+| `dependency failed to start: container backend… is unhealthy` | Check the backend logs. `password authentication failed` was caused by a database volume created with an older password; the `db` image now re-applies `POSTGRES_PASSWORD` on every start (`infra/postgres/sync-password.sh`), so just redeploy. |
 | `required variable … is missing a value` | Set that variable in the platform's environment settings. |
 | Images return `403` / `SignatureDoesNotMatch` | `PUBLIC_BASE_URL` does not exactly match the domain in the browser. |
 | Map is blank | The tile server blocked the request; set `VITE_MAP_TILE_URL` to your tile provider and redeploy. |
