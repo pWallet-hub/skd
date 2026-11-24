@@ -22,6 +22,8 @@ export interface User {
   full_name: string;
   role: UserRole;
   home_area_id: number | null;
+  phone_number: string | null;
+  created_at: string;
 }
 
 export interface Child {
@@ -34,6 +36,7 @@ export interface Child {
   photo_url: string | null;
   age_months: number;
   learning_interests: string[];
+  health_notes: string | null;
 }
 
 export interface Symptom {

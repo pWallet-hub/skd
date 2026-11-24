@@ -22,6 +22,7 @@ export function ChildForm({ child, onClose, onSaved }: { child?: Child; onClose:
   const [schoolId, setSchoolId] = useState(String(child?.school_id ?? ""));
   const [interests, setInterests] = useState<string[]>(child?.learning_interests ?? []);
   const [photo, setPhoto] = useState<File | null>(null);
+  const [notes, setNotes] = useState(child?.health_notes ?? "");
 
   const save = useMutation({
     mutationFn: async () => {
@@ -32,6 +33,7 @@ export function ChildForm({ child, onClose, onSaved }: { child?: Child; onClose:
         area_id: areaId ? Number(areaId) : null,
         school_id: schoolId ? Number(schoolId) : null,
         learning_interests: interests,
+        health_notes: notes || null,
       };
       let saved = child ? await patch<Child>(`/children/${child.id}`, body) : await post<Child>("/children", body);
       if (photo) saved = await upload<Child>(`/children/${saved.id}/photo`, photo);
@@ -97,6 +99,9 @@ export function ChildForm({ child, onClose, onSaved }: { child?: Child; onClose:
               </label>
             ))}
           </div>
+        </Field>
+        <Field label="Allergies & health notes (optional)" hint="E.g. allergies, long-term conditions, medicines. Shown on the QR health card for clinics.">
+          <textarea className="input" rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={2000} />
         </Field>
         <ErrorText error={save.error} />
       </form>

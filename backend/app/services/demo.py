@@ -41,6 +41,9 @@ DEMO_EMAIL_DOMAIN = "@example.com"
 DEMO_PASSWORD = "SmartKids123!"
 CLUSTER_SCHOOL_PREFIX = "Umucyo"
 LAST_RUN_KEY = "demo_last_run"
+# The presenter's own family is never touched, so the scripted demo story stays predictable
+# (e.g. Ganza's vaccine stays "due" until the presenter records it live).
+PRESENTER_EMAILS = ("parent@example.com",)
 
 FIRST_NAMES = [
     "Alice",
@@ -135,7 +138,11 @@ def _demo_children(db: Session) -> list[Child]:
         db.scalars(
             select(Child)
             .join(User, User.id == Child.guardian_id)
-            .where(User.email.endswith(DEMO_EMAIL_DOMAIN), User.role == UserRole.PARENT)
+            .where(
+                User.email.endswith(DEMO_EMAIL_DOMAIN),
+                User.email.not_in(PRESENTER_EMAILS),
+                User.role == UserRole.PARENT,
+            )
         )
     )
 
@@ -229,9 +236,11 @@ def simulate_activity(db: Session, seed: int | None = None) -> dict[str, int]:
     ongoing = list(
         db.scalars(
             select(SymptomReport)
+            .join(User, User.id == SymptomReport.reported_by_id)
             .where(
                 SymptomReport.is_ongoing.is_(True),
                 SymptomReport.onset_date <= today - timedelta(days=2),
+                User.email.not_in(PRESENTER_EMAILS),
             )
             .limit(50)
         )

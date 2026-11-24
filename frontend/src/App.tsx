@@ -11,6 +11,7 @@ import ContentPage from "./pages/admin/ContentPage";
 import PlacesPage from "./pages/admin/PlacesPage";
 import SettingsPage from "./pages/admin/SettingsPage";
 import UsersPage from "./pages/admin/UsersPage";
+import AccountPage from "./pages/AccountPage";
 import AlertsPage from "./pages/AlertsPage";
 import ChildPage from "./pages/ChildPage";
 import FindCarePage from "./pages/FindCarePage";
@@ -65,6 +66,7 @@ export default function App() {
         <Route path="care" element={only(["parent"], <FindCarePage />)} />
         <Route path="learn" element={<LearnPage />} />
         <Route path="notifications" element={<NotificationsPage />} />
+        <Route path="account" element={<AccountPage />} />
 
         <Route path="insights" element={only(STAFF, <InsightsPage />)} />
         <Route path="map" element={only(STAFF, <MapPage />)} />

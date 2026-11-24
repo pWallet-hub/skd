@@ -13,6 +13,7 @@ from app.models.enums import UserRole
 from app.schemas.user import (
     LoginRequest,
     ParentRegister,
+    PasswordChange,
     RefreshRequest,
     TokenPair,
     UserRead,
@@ -100,6 +101,27 @@ def update_me(payload: UserUpdate, user: CurrentUser, db: DbSession) -> User:
     db.commit()
     db.refresh(user)
     return user
+
+
+@router.post("/change-password", status_code=status.HTTP_204_NO_CONTENT)
+def change_password(
+    payload: PasswordChange, user: CurrentUser, db: DbSession, request: Request
+) -> None:
+    if not verify_password(payload.current_password, user.password_hash):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Current password is incorrect")
+    if payload.new_password == payload.current_password:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Choose a different password")
+    user.password_hash = hash_password(payload.new_password)
+    audit.record(
+        db,
+        user,
+        "user.password_change",
+        "user",
+        user.id,
+        f"{user.email} changed their password",
+        request=request,
+    )
+    db.commit()
 
 
 # ---- external sign-in providers ------------------------------------------------

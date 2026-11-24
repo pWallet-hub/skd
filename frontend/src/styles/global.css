@@ -417,6 +417,9 @@ table.table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
 .divider { display: flex; align-items: center; gap: 12px; color: var(--text-3); font-size: 0.78rem; margin: 22px 0 14px; }
 .divider::before, .divider::after { content: ""; flex: 1; height: 1px; background: var(--border); }
 
+/* Mobile bottom tab bar (parents) — shown only on small screens */
+.tabbar { display: none; }
+
 /* --------------------------------------------------------- responsive --- */
 @media (max-width: 1100px) {
   .grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -433,6 +436,24 @@ table.table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
   .user-chip .who { display: none; }
   .form-grid, .setting-row { grid-template-columns: 1fr; }
   .map { height: 460px; }
+  .tabbar {
+    display: grid; grid-template-columns: repeat(5, 1fr); position: fixed; left: 0; right: 0; bottom: 0;
+    background: var(--surface); border-top: 1px solid var(--border); z-index: 40;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .tabbar a {
+    display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 2px 6px;
+    color: var(--text-3); font-size: 0.68rem; font-weight: 600; text-decoration: none;
+  }
+  .tabbar a.active { color: var(--brand-700); }
+  .stat-row { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 8px; }
+  .stat-row .stat { flex-direction: column; padding: 12px; gap: 8px; }
+  .stat-row .stat-icon { width: 34px; height: 34px; border-radius: 10px; }
+  .stat-row .stat-value { font-size: 1.3rem; }
+  .stat-row .stat-label { font-size: 0.72rem; }
+  .content.has-tabbar { padding-bottom: calc(84px + env(safe-area-inset-bottom)); }
+  .toasts { bottom: calc(76px + env(safe-area-inset-bottom)); left: 16px; right: 16px; }
+  .toast { min-width: 0; }
 }
 @media (max-width: 520px) {
   .grid-4 { grid-template-columns: minmax(0, 1fr); }

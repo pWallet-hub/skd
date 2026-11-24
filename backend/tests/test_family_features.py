@@ -175,3 +175,23 @@ def test_demo_simulator_generates_activity(client, db, make_user, geo):
         ).status_code
         == 403
     )
+
+
+def test_simulator_never_touches_presenter_family(db, make_user, geo):
+    presenter = make_user(email="parent@example.com")
+    dob = date.today() - timedelta(days=280)  # measles-rubella due
+    db.add(Child(guardian=presenter, display_name="Ganza", date_of_birth=dob, area=geo["sector"]))
+    other = make_user(email="other@example.com")
+    db.add(Child(guardian=other, display_name="Other", date_of_birth=dob, area=geo["sector"]))
+    db.commit()
+    for seed in range(15):
+        simulate_activity(db, seed=seed)
+    from app.models import ImmunizationRecord, SymptomReport
+
+    assert not db.scalars(
+        select(SymptomReport).where(SymptomReport.reported_by_id == presenter.id)
+    ).all()
+    ganza = db.scalar(select(Child).where(Child.guardian_id == presenter.id))
+    assert not db.scalars(
+        select(ImmunizationRecord).where(ImmunizationRecord.child_id == ganza.id)
+    ).all()

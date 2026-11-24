@@ -2,7 +2,12 @@
 
     make seed     # or: docker compose exec backend python -m app.scripts.seed
 
-With --if-empty it only seeds a database that has no users (used by SEED_DEMO_DATA=true).
+Modes:
+  (none)      wipe and re-seed now
+  --if-empty  only seed a database that has no users
+  --auto      used on every deploy when SEED_DEMO_DATA=true: seed an empty database, and
+              REFRESH the demo data when DEMO_DATA_VERSION changes — but only if every account
+              is a demo account (@example.com). Real users' data is never touched.
 
 Administrative area names are real Kigali districts/sectors so the map looks right, but
 every family, child, school, facility, infrastructure item and report is invented.
@@ -249,6 +254,9 @@ DRAFT_ARTICLES = [
 ]
 
 NUM_FAMILIES = 30
+# Bump this whenever the demo data changes; deployments with SEED_DEMO_DATA=true refresh automatically.
+DEMO_DATA_VERSION = "2026-11-24.2"
+DEMO_VERSION_KEY = "demo_data_version"
 KIMIRONKO_FAMILIES = 6  # families around the demo-cluster school
 
 
@@ -596,8 +604,11 @@ def seed(db: Session) -> None:
                             read_at=(now - timedelta(days=days_ago - 1)) if read else None))  # fmt: skip
     db.commit()
 
+    db.add(SystemSetting(key=DEMO_VERSION_KEY, value=DEMO_DATA_VERSION))
+    db.commit()
+
     created, updated = detect_signals(db)
-    print(f"Seeded demo data: {NUM_FAMILIES} families, {len(children)} children. "
+    print(f"Seeded demo data (version {DEMO_DATA_VERSION}): {NUM_FAMILIES} families, {len(children)} children. "
           f"Signals detected: {created} created, {updated} updated.")  # fmt: skip
     print(f"Demo password for every account: {DEMO_PASSWORD}")
     print(
@@ -605,15 +616,41 @@ def seed(db: Session) -> None:
     )
 
 
+def auto(db: Session) -> None:
+    """Deploy-time behaviour for SEED_DEMO_DATA=true (see module docstring)."""
+    users = db.scalar(select(func.count(User.id))) or 0
+    if users == 0:
+        print("Empty database: loading demo data.")
+        seed(db)
+        return
+    real_users = db.scalar(select(func.count(User.id)).where(User.email.not_like("%@example.com")))
+    if real_users:
+        print(f"{real_users} non-demo account(s) present; demo data left untouched.")
+        return
+    current = db.get(SystemSetting, DEMO_VERSION_KEY)
+    if current is not None and current.value == DEMO_DATA_VERSION:
+        print(f"Demo data is up to date (version {DEMO_DATA_VERSION}).")
+        return
+    print(
+        f"Refreshing demo data: {current.value if current else 'unversioned'} -> {DEMO_DATA_VERSION}"
+    )
+    seed(db)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Load fictional demo data.")
-    parser.add_argument(
-        "--if-empty",
-        action="store_true",
-        help="Only seed when the database has no users (safe for automatic start-up use).",
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument(
+        "--if-empty", action="store_true", help="Only seed a database with no users."
+    )
+    group.add_argument(
+        "--auto", action="store_true", help="Deploy-time mode (see module docstring)."
     )
     args = parser.parse_args()
     with SessionLocal() as db:
+        if args.auto:
+            auto(db)
+            return
         if args.if_empty and db.scalar(select(func.count(User.id))):
             print("Database already has users; skipping demo seed.")
             return

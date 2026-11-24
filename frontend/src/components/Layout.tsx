@@ -23,6 +23,7 @@ import {
   Smile,
   Stethoscope,
   TrendingUp,
+  UserCog,
   Users,
 } from "./icons";
 import { Avatar } from "./ui";
@@ -173,6 +174,9 @@ export function Layout() {
             {menuOpen && (
               <div className="dropdown" role="menu">
                 <div className="meta">{user.email}</div>
+                <Link to="/account">
+                  <UserCog size={16} /> My account
+                </Link>
                 <Link to="/notifications">
                   <Bell size={16} /> Notifications
                 </Link>
@@ -183,9 +187,18 @@ export function Layout() {
             )}
           </div>
         </header>
-        <main className="content">
+        <main className={`content ${user.role === "parent" ? "has-tabbar" : ""}`}>
           <Outlet />
         </main>
+        {user.role === "parent" && (
+          <nav className="tabbar" aria-label="Main">
+            <NavLink to="/family"><LayoutDashboard size={20} /><span>Home</span></NavLink>
+            <NavLink to="/report"><Stethoscope size={20} /><span>Report</span></NavLink>
+            <NavLink to="/care"><Hospital size={20} /><span>Care</span></NavLink>
+            <NavLink to="/learn"><BookOpen size={20} /><span>Guidance</span></NavLink>
+            <NavLink to="/notifications"><Bell size={20} /><span>Alerts{unread > 0 ? ` (${unread})` : ""}</span></NavLink>
+          </nav>
+        )}
       </div>
       {navOpen && <div className="modal-backdrop" style={{ zIndex: 25 }} onClick={() => setNavOpen(false)} />}
     </div>

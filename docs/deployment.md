@@ -30,15 +30,18 @@ Why `compose.yaml` works on hosted platforms:
    | `POSTGRES_PASSWORD` | `openssl rand -hex 24`                            |
    | `S3_SECRET_KEY`     | `openssl rand -hex 24`                            |
 
-   For a demo, also set `DEMO_MODE=true` (demo families keep generating activity) and `SEED_DEMO_DATA=true` to load the fictional demo data on first start
-   (it only runs when the database has no users, so it never overwrites data).
+   For a demo, also set `DEMO_MODE=true` (demo families keep generating activity) and
+   `SEED_DEMO_DATA=true`. Demo data then loads automatically into an empty database **and
+   refreshes itself on deploy whenever its version changes** — but only while every account is a
+   demo account (`@example.com`). As soon as a real person registers, it is never touched again.
 
    Optional: `S3_ACCESS_KEY`, `S3_BUCKET_PUBLIC`, `S3_BUCKET_PRIVATE`, `WEB_CONCURRENCY`,
    `VITE_MAP_TILE_URL` (tile server for the map), `SMTP_*`, and the `SIGNAL_*` defaults.
 4. **Domains:** set the domain on the **`frontend`** service only, e.g. `https://smartkids.example.org`
    (it listens on port 80, Coolify's default). Leave the other services without a domain. It
    must match `PUBLIC_BASE_URL` exactly (scheme and host), otherwise signed image URLs will not verify.
-5. **Deploy.** First start runs database migrations and creates the storage buckets automatically.
+5. **Deploy.** Every start runs, inside Docker: database migrations → storage buckets → demo
+   data (if enabled) → API server. No terminal steps are needed.
 6. *(Demo only)* To reset the demo data later, run `python -m app.scripts.seed` in the `backend`
    terminal in Coolify — **never on a real production database** (it wipes data).
 

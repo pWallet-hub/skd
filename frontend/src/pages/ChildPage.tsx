@@ -107,6 +107,13 @@ export default function ChildPage() {
           <StatCard label="Milestones reached" value={`${achieved} / ${milestones.data?.length ?? "–"}`} tone="brand" icon={<Sparkles size={20} />} sub={ongoing.length ? `${ongoing.length} ongoing health concern(s)` : "no ongoing concerns"} />
         </div>
       )}
+      {tab === "overview" && (
+        <div style={{ marginTop: 18 }}><Card title="Allergies & health notes">
+          <p className={c.health_notes ? "" : "muted"} style={{ whiteSpace: "pre-wrap" }}>
+            {c.health_notes || "Nothing recorded. Add allergies or conditions with Edit — they appear on the QR health card."}
+          </p>
+        </Card></div>
+      )}
       {tab === "growth" && <GrowthTab childId={c.id} data={measurements.data ?? []} />}
       {tab === "vaccines" && <VaccinesTab child={c} items={vaccines.data} />}
       {tab === "milestones" && <MilestonesTab child={c} items={milestones.data} />}

@@ -71,7 +71,7 @@ export default function FamilyPage() {
         }
       />
 
-      <div className="grid grid-3" style={{ marginBottom: 18 }}>
+      <div className="grid grid-3 stat-row" style={{ marginBottom: 18 }}>
         <StatCard label="Children" value={children.data?.length ?? "–"} icon={<Baby size={20} />} />
         <StatCard label="Ongoing concerns" value={ongoing} tone={ongoing ? "warn" : "ok"} icon={<HeartPulse size={20} />} />
         <StatCard label="Unread notifications" value={unread} tone="info" icon={<Bell size={20} />} />

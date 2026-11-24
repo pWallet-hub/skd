@@ -32,6 +32,17 @@ server {
         proxy_buffering off;
     }
 
+    # Service worker and manifest must always be fresh so app updates reach installed phones.
+    location = /sw.js {
+        add_header Cache-Control "no-cache";
+        try_files $uri =404;
+    }
+    location = /manifest.webmanifest {
+        default_type application/manifest+json;
+        add_header Cache-Control "no-cache";
+        try_files $uri =404;
+    }
+
     location /assets/ {
         expires 1y;
         add_header Cache-Control "public, immutable";

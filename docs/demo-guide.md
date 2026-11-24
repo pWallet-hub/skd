@@ -4,19 +4,23 @@ A 15–20 minute walkthrough that shows every role using the app the way real us
 All data is **fictional**. Every demo account uses the password **`SmartKids123!`** (the login
 page also has one-click demo buttons).
 
-## Before the meeting (5 minutes)
+## Before the meeting (2 minutes)
 
-1. Make sure the deployment has `SEED_DEMO_DATA=true` and `DEMO_MODE=true` (see
-   [deployment.md](deployment.md)). To start from a clean, known state, run
-   `python -m app.scripts.seed` in the backend terminal (this **resets** all demo data).
-2. Sign in as **admin** → *Settings* → *Demo mode*: check it is **On**, then click **Generate**
-   once or twice so the dashboards show activity from "today".
-3. Open the app in two browser windows (or one normal + one private window) so you can switch
-   between a parent and a staff member quickly.
+Demo URL: **https://smartkkids.197.243.27.200.sslip.io/login**
 
-While demo mode is on, the fictional families keep using the app every few minutes: new reports,
-recoveries, growth checks, vaccinations, milestones and occasional new sign-ups. Dashboards refresh
-automatically every 30 seconds, so numbers visibly grow during the presentation.
+Everything is automatic on deploy (inside Docker): migrations, storage, and the demo data, which
+**refreshes itself whenever the demo-data version changes** (only while all accounts are demo
+accounts). With `DEMO_MODE=true`, the fictional families keep using the app every few minutes.
+
+1. Open the URL and sign in as **admin** → *Settings* → *Demo mode*: check it is **On**, then click
+   **Generate** once or twice so the dashboards show activity from "today".
+2. Open a second browser window (or a private window) so you can switch between a parent and a
+   staff member quickly.
+3. Optional: on a phone, open the URL and **install the app** (Chrome: *Install app*; iPhone Safari:
+   *Share → Add to Home Screen*) to show SmartKids as a real mobile app with a bottom tab bar.
+
+To reset the demo to its starting point at any time, run `python -m app.scripts.seed` in the
+backend terminal in Coolify (wipes and reloads the fictional data).
 
 ## Demo accounts
 
@@ -49,6 +53,8 @@ automatically every 30 seconds, so numbers visibly grow during the presentation.
   **guidance** matched to the symptoms (e.g. hydration advice for diarrhea).
 - **Find care** → nearest health facilities on a map, with call and directions buttons.
 - **Guidance** → reviewed articles by category.
+- **My account** (menu, top right) → edit profile, change password, **install the app** on the phone.
+- On a phone: bottom tab bar (Home · Report · Care · Guidance · Alerts), works like a native app.
 
 ### 3. Community intelligence (4 min) — sign in as **Analyst**
 - **Overview**: families, reports this week, open signals; reports-per-day chart; top concerns. *Export CSV* (de-identified).
@@ -95,3 +101,5 @@ automatically every 30 seconds, so numbers visibly grow during the presentation.
 | Find nearby care with directions | Health-facility finder apps |
 | Community alerts with human approval | Public-health early-warning systems |
 | Sign in with Google (placeholder) | Most consumer apps — planned for the next phase |
+| Installable app (PWA) with bottom tab bar, works offline | Mobile health apps |
+| Allergies & health notes on the child's card | Digital child health records |
