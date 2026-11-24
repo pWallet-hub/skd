@@ -71,7 +71,8 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      # Healthy only after POSTGRES_PASSWORD has been applied (infra/postgres/sync-password.sh)
+      test: ["CMD-SHELL", "pg_isready -q -U $${POSTGRES_USER} -d $${POSTGRES_DB} && test -f /tmp/password-synced"]
       interval: 5s
       timeout: 5s
       retries: 30
